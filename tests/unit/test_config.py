@@ -29,6 +29,10 @@ def live_settings(**overrides: object) -> Settings:
         "secret_key": SecretStr(LIVE_SECRET),
         "public_base_url": LIVE_BASE_URL,
         "encryption_key": SecretStr(LIVE_ENCRYPTION_KEY),
+        "llm_provider_chain": ["openai"],
+        "llm_openai_api_key": SecretStr("sk-synthetic-not-a-real-key"),
+        "llm_openai_model": "owner-selected-model",
+        "llm_daily_budget_paise": 1,
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)  # type: ignore[arg-type]
@@ -115,6 +119,24 @@ def test_live_refuses_placeholder_secret() -> None:
 def test_live_refuses_plain_http_public_url() -> None:
     with pytest.raises(ValidationError, match="https://"):
         live_settings(public_base_url="http://travelos.example.com")
+
+
+def test_live_refuses_the_fake_llm_provider() -> None:
+    with pytest.raises(ValidationError, match="fake LLM provider"):
+        live_settings(llm_provider_chain=["fake"])
+
+
+def test_live_requires_an_llm_budget() -> None:
+    with pytest.raises(ValidationError, match="LLM_DAILY_BUDGET_PAISE"):
+        live_settings(llm_daily_budget_paise=None)
+
+
+def test_live_requires_the_provider_key_and_https_base_url() -> None:
+    with pytest.raises(ValidationError, match="LLM_OPENAI_API_KEY"):
+        live_settings(llm_openai_api_key=None)
+
+    with pytest.raises(ValidationError, match="LLM_OPENAI_BASE_URL"):
+        live_settings(llm_openai_base_url="http://llm.example.test/v1")
 
 
 def test_live_accepts_fully_configured_settings() -> None:

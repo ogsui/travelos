@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -145,6 +146,38 @@ class Settings(BaseSettings):
     approval_ttl_minutes: int = Field(default=1440, ge=5, le=525_600)
     approval_escalation_minutes: int = Field(default=30, ge=1, le=525_600)
 
+    # LLM gateway (task 006). The fake provider is the only default and may
+    # never run in live mode. Real providers need the owner's key and model.
+    prompts_dir: str = "prompts"
+    llm_provider_chain: list[str] = Field(default_factory=lambda: ["fake"])
+    llm_max_attempts: int = Field(default=3, ge=1, le=10)
+    llm_backoff_seconds: float = Field(default=1.0, gt=0, le=60)
+    llm_timeout_seconds: float = Field(default=30.0, gt=0, le=300)
+    # Unset means "no enforced cap" outside live. The owner must set a real
+    # paise budget before live mode will start; no threshold is invented here.
+    llm_daily_budget_paise: int | None = Field(default=None, ge=0)
+    llm_cache_enabled: bool = True
+    llm_cache_ttl_seconds: int = Field(default=300, ge=1, le=86_400)
+    llm_circuit_failure_threshold: int = Field(default=3, ge=1, le=100)
+    llm_circuit_reset_seconds: int = Field(default=60, ge=1, le=3600)
+    llm_fake_model: str = "fake-1"
+    llm_openai_base_url: str = "https://api.openai.com/v1"
+    llm_openai_model: str = ""
+    llm_openai_api_key: SecretStr | None = None
+    llm_openai_no_training: bool = True
+    llm_openai_synthetic_only: bool = False
+    llm_openai_input_paise_per_million: int = Field(default=0, ge=0)
+    llm_openai_output_paise_per_million: int = Field(default=0, ge=0)
+    llm_anthropic_base_url: str = "https://api.anthropic.com"
+    llm_anthropic_model: str = ""
+    llm_anthropic_api_key: SecretStr | None = None
+    llm_anthropic_version: str = "2023-06-01"
+    llm_anthropic_no_training: bool = True
+    llm_anthropic_synthetic_only: bool = False
+    llm_anthropic_input_paise_per_million: int = Field(default=0, ge=0)
+    llm_anthropic_output_paise_per_million: int = Field(default=0, ge=0)
+    llm_pricing_currency: str = "INR"
+
     @model_validator(mode="after")
     def _escalation_before_expiry(self) -> Settings:
         if self.approval_escalation_minutes >= self.approval_ttl_minutes:
@@ -184,6 +217,39 @@ class Settings(BaseSettings):
         if missing:
             raise ValueError(
                 "MODE=live refused: missing required settings: " + ", ".join(sorted(missing))
+            )
+
+        chain = [item.strip().lower() for item in self.llm_provider_chain if item.strip()]
+        if not chain:
+            raise ValueError("MODE=live refused: LLM_PROVIDER_CHAIN must not be empty")
+        if "fake" in chain:
+            raise ValueError("MODE=live refused: the fake LLM provider is test-only")
+        llm_missing: list[str] = []
+        for name in chain:
+            if name in {"openai", "openai_compatible"}:
+                if not self.llm_openai_api_key:
+                    llm_missing.append("LLM_OPENAI_API_KEY")
+                if not self.llm_openai_model:
+                    llm_missing.append("LLM_OPENAI_MODEL")
+                if not self.llm_openai_base_url.startswith("https://"):
+                    raise ValueError("MODE=live refused: LLM_OPENAI_BASE_URL must use https://")
+            elif name == "anthropic":
+                if not self.llm_anthropic_api_key:
+                    llm_missing.append("LLM_ANTHROPIC_API_KEY")
+                if not self.llm_anthropic_model:
+                    llm_missing.append("LLM_ANTHROPIC_MODEL")
+                if not self.llm_anthropic_base_url.startswith("https://"):
+                    raise ValueError("MODE=live refused: LLM_ANTHROPIC_BASE_URL must use https://")
+            else:
+                raise ValueError(f"MODE=live refused: unknown LLM provider {name!r}")
+        if self.llm_daily_budget_paise is None:
+            llm_missing.append("LLM_DAILY_BUDGET_PAISE")
+        if not Path(self.prompts_dir).is_dir():
+            llm_missing.append("PROMPTS_DIR")
+        if llm_missing:
+            raise ValueError(
+                "MODE=live refused: missing required LLM settings: "
+                + ", ".join(sorted(llm_missing))
             )
 
         if self.public_base_url and not self.public_base_url.startswith("https://"):

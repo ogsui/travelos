@@ -22,10 +22,10 @@
 
 ## LLM-specific security
 - **Prompt injection**: all customer/email/web/supplier text is untrusted data, delimited, never in system prompts. The model returns proposals; code decides. No tool access from inbound text. URLs from messages are never fetched without an allowlist.
-- **Data leakage**: redact PII before calls (placeholders); data-class vs provider-policy enforcement; no real data to free-tier providers; prompt/response logging stores metadata + redacted text only.
+- **Data leakage**: redact PII before calls (placeholders); data-class vs provider-policy enforcement; no real data to free-tier providers; `llm_calls` stores metadata, token/cost counts and redacted text only, never the reversible placeholder mapping.
 - **Hallucination controls**: schema validation; facts (prices, availability, policies, visa) come only from system data or approved KB, else "to be confirmed by staff".
 - **Abuse**: per-contact rate limits, length limits, attachment scanning.
-- Red-team suite in `tests/eval/adversarial` runs in CI (see `08_TESTING_EVAL.md`).
+- Red-team suite `tests/eval/test_llm_injection.py` runs in CI against `data/eval/llm_injection.jsonl` (see `08_TESTING_EVAL.md`).
 
 ## Privacy (India: verify with counsel)
 - Digital Personal Data Protection Act 2023 and Rules: notice, purpose-limited consent, withdrawal as easy as giving, data-principal rights (access/correction/erasure), breach handling, special care for children's data (many travellers are minors: consent via parent/guardian), retention limits, processors/vendors agreements.

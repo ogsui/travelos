@@ -112,6 +112,10 @@ def test_live_hides_docs() -> None:
         secret_key="b" * 40,
         public_base_url="https://travelos.example.com",
         encryption_key="MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
+        llm_provider_chain=["openai"],
+        llm_openai_api_key="sk-synthetic-not-a-real-key",
+        llm_openai_model="owner-selected-model",
+        llm_daily_budget_paise=1,
     )
 
     app: FastAPI = create_app(settings)

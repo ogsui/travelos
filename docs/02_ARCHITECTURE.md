@@ -80,10 +80,11 @@ Implementation note (task 004): the definitions live in `workflow/definitions.py
 ## LLM architecture
 All model calls go through `llm/gateway`:
 - Providers: Fake (tests), OpenAI-compatible (covers OpenCode Zen, OpenRouter, local servers, and other compatible endpoints), Anthropic. Each has policy flags: `no_training`, `synthetic_only`.
-- Data classes: `synthetic | customer | public`. A call with `customer` data to a provider that is not `no_training` raises.
-- Placeholders replace PII before the call; the mapping stays server-side.
-- Outputs are validated against Pydantic schemas; repair retry once; then escalate to a human task.
-- LLMs never call tools directly. They return proposals; the ActionPolicy layer decides (auto, approval, or deny).
+- Data classes: `synthetic | customer | public`. A call with `customer` or `public` data requires a provider with `no_training=True` and `synthetic_only=False`; an ineligible call is blocked before any network request. A caller may escalate a prompt's declared class but never downgrade it.
+- Placeholders replace PII before the call; the mapping stays in process memory and is restored in the answer. Stored requests/responses keep placeholders.
+- Outputs are validated against the JSON Schema declared by the prompt; one repair retry; then the next provider, and finally a high-priority human task.
+- LLMs never call tools directly: the request type has no tool/function field. They return proposals; the ActionPolicy layer decides (auto, approval, or deny).
+- Every attempt is recorded in append-only `llm_calls` with integer-paise cost, tokens, latency, redacted bodies and hashes; budget checks and a development-only response cache sit in front of the provider chain.
 
 ## Reliability patterns
 Timeouts everywhere; retries with jittered backoff; circuit breakers per adapter; idempotency keys on every external write; transactional outbox; dead-letter queue with a dashboard; graceful degradation (competitor data missing -> quote anyway, flagged); feature-flag kill switches; schema migrations backwards compatible.

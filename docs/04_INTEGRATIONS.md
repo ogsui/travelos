@@ -25,9 +25,26 @@ Rule: official API first; mock always present; fragile options OFF by default. N
 | Weather | WeatherAdapter | Fixtures | Open-Meteo | |
 | FX | FxAdapter | Fixed | Reputable FX API | Stored with timestamp. |
 | Images | ImageAdapter | Placeholder | Image-generation API; owner photo library | Real properties: licensed/own photos only. |
-| LLM | LLMProvider | Fake | OpenAI-compatible (incl. OpenCode Zen, OpenRouter, local), Anthropic | Policy flags per provider. |
+| LLM | LLMProvider | Fake | OpenAI-compatible (incl. OpenCode Zen, OpenRouter, local), Anthropic | Policy flags per provider; see the section below. |
 | PDF | — | WeasyPrint | WeasyPrint | |
 | Storage | ObjectStore | MinIO | S3-compatible | Encrypted buckets. |
+
+## LLM providers (task 006)
+- `LLMProvider` is a small interface: `name`, `model`, `policy`, `pricing`, and one `complete(request)` call. The request type deliberately has no tools, functions or streaming field, so injected text has no structural path to an action.
+- `FakeProvider` is deterministic and network-free; it is the default chain (`LLM_PROVIDER_CHAIN=["fake"]`) for tests, evals and CI. Live mode refuses it at settings validation.
+- `OpenAICompatibleProvider` implements the documented `POST /chat/completions` shape and covers OpenAI, OpenCode Zen, OpenRouter and local compatible servers. `AnthropicProvider` implements the documented `POST /v1/messages` shape. Both take `base_url`, `model` and an optional key from settings; no endpoint, model name or price is guessed.
+- Each provider has `no_training` and `synthetic_only` flags. Synthetic data may use any provider; `customer` or `public` data requires `no_training=True` and `synthetic_only=False`. A call with no eligible provider is blocked before any network request, recorded as `policy_blocked` and escalated to the owner. A caller may raise a prompt's declared data class (for example, mark a normally synthetic prompt as customer data) but may not lower it; a downgrade attempt is also blocked and escalated.
+- The gateway owns retries (bounded attempts, exponential backoff with a cap) and a per-provider circuit breaker. Provider adapters map HTTP 429/401/403/5xx/4xx and timeouts to typed errors; they do not retry internally. Schema failures do not open the circuit because the provider was reachable.
+- Provider payloads are sent with `temperature` and `max_tokens` from the prompt spec. There is no streaming and no tool/function calling in this layer.
+- Prompt and response bodies are logged redacted in `llm_calls`; raw keys and Authorization headers are never logged. Prompts are rendered from `prompts/*.md` (see `prompts/README.md`).
+- Pricing is integer paise per million input/output tokens (`LLM_*_INPUT_PAISE_PER_MILLION`, `LLM_*_OUTPUT_PAISE_PER_MILLION`). Defaults are `0`, meaning unpriced rather than free; the owner must supply a price list before live cost reporting is meaningful. Cost is rounded up to the next paise and never uses a float.
+
+### TODO(owner) — LLM account manager
+1. Which provider(s) and exact model IDs should be primary and fallback?
+2. What is the per-million-token price (input/output, and any cached-input or batch discount) in INR, with an effective date?
+3. Is a no-training / data-processing addendum available for `customer` data, and what is the data-residency region?
+4. What are the account rate limits (requests and tokens per minute) and the retry guidance?
+5. Which model context window and max-output limit apply, so prompt `max_tokens` values stay valid?
 
 ## Scraping policy (MKT-1)
 - Public pages only, no login, per-site flag default OFF; enabling requires the owner to record a decision in `docs/DECISIONS.md` (site, date, rationale, robots.txt and ToS reviewed).

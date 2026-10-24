@@ -20,6 +20,10 @@ def test_seed_refuses_live_mode(monkeypatch: pytest.MonkeyPatch) -> None:
         secret_key="c" * 40,
         public_base_url="https://travelos.example.com",
         encryption_key="MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
+        llm_provider_chain=["openai"],
+        llm_openai_api_key="sk-synthetic-not-a-real-key",
+        llm_openai_model="owner-selected-model",
+        llm_daily_budget_paise=1,
     )
     monkeypatch.setattr(seed, "get_settings", lambda: live)
 
