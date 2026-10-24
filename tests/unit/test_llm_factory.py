@@ -63,6 +63,41 @@ def test_openai_and_anthropic_are_wired_with_policy_and_prices(tmp_path: Path) -
     assert anthropic.policy.accepts(DataClass.SYNTHETIC)
 
 
+def test_opencode_uses_primary_then_fallback_model(tmp_path: Path) -> None:
+    chain = build_provider_chain(
+        settings(
+            tmp_path,
+            llm_provider="opencode",
+            llm_model="deepseek-v4.1-flash-free",
+            llm_fallback_model="glm-5.3-flash-free",
+            llm_opencode_api_key="synthetic-key",
+        )
+    )
+
+    assert [provider.name for provider in chain] == ["opencode", "opencode-fallback"]
+    assert [provider.model for provider in chain] == [
+        "deepseek-v4.1-flash-free",
+        "glm-5.3-flash-free",
+    ]
+    assert all(provider.pricing.free for provider in chain)
+    assert all(provider.pricing.cost_paise(1_000_000, 1_000_000) == 0 for provider in chain)
+
+
+def test_opencode_fallback_can_be_disabled(tmp_path: Path) -> None:
+    chain = build_provider_chain(settings(tmp_path, llm_provider="opencode", llm_fallback_model=""))
+
+    assert [provider.name for provider in chain] == ["opencode"]
+
+
+def test_unpriced_opencode_model_is_not_declared_free(tmp_path: Path) -> None:
+    chain = build_provider_chain(
+        settings(tmp_path, llm_provider="opencode", llm_model="owner-paid-model")
+    )
+
+    assert chain[0].pricing.free is False
+    assert chain[0].pricing.input_paise_per_million == 0
+
+
 def test_unknown_provider_fails_loudly(tmp_path: Path) -> None:
     with pytest.raises(LLMConfigurationError, match="unknown LLM provider"):
         build_provider_chain(settings(tmp_path, llm_provider_chain=["mystery"]))

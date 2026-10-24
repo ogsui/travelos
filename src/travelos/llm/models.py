@@ -6,7 +6,8 @@ placeholders remain placeholders. Personal data, API keys and raw responses are
 never written here.
 
 The table is append-only in the ORM and in PostgreSQL, matching ``audit_log``.
-Retention and deletion are an owner decision; see docs/BACKLOG.md.
+The owner set a 90-day retention period; ``llm.retention`` is the single,
+audited deletion path.
 """
 
 from __future__ import annotations
@@ -78,6 +79,10 @@ class LLMCall(BaseTable):
         Index("ix_llm_calls_prompt", "tenant_id", "prompt_name", "created_at"),
         Index("ix_llm_calls_status", "status", "created_at"),
         Index("ix_llm_calls_provider", "provider", "created_at"),
+        # Retention purge scans created_at globally; budget accounting scans
+        # one tenant's created_at range.
+        Index("ix_llm_calls_created_at", "created_at"),
+        Index("ix_llm_calls_tenant_created_at", "tenant_id", "created_at"),
     )
 
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -149,18 +150,34 @@ class Settings(BaseSettings):
     # LLM gateway (task 006). The fake provider is the only default and may
     # never run in live mode. Real providers need the owner's key and model.
     prompts_dir: str = "prompts"
+    llm_provider: str | None = None
     llm_provider_chain: list[str] = Field(default_factory=lambda: ["fake"])
+    # Generic model overrides. The owner's preferred names are LLM_MODEL and
+    # LLM_FALLBACK_MODEL; per-provider fields remain for compatibility.
+    llm_model: str | None = None
+    llm_fallback_model: str | None = None
     llm_max_attempts: int = Field(default=3, ge=1, le=10)
     llm_backoff_seconds: float = Field(default=1.0, gt=0, le=60)
     llm_timeout_seconds: float = Field(default=30.0, gt=0, le=300)
-    # Unset means "no enforced cap" outside live. The owner must set a real
-    # paise budget before live mode will start; no threshold is invented here.
+    # Unset means "no enforced cap" outside live. A value of 0 means "free
+    # providers only" (a provider must declare pricing.free=True); the owner
+    # must set a real paid budget before live paid calls can run.
     llm_daily_budget_paise: int | None = Field(default=None, ge=0)
+    llm_accounting_timezone: str = "Asia/Kolkata"
+    llm_call_retention_days: int = Field(default=90, ge=1, le=3650)
     llm_cache_enabled: bool = True
     llm_cache_ttl_seconds: int = Field(default=300, ge=1, le=86_400)
     llm_circuit_failure_threshold: int = Field(default=3, ge=1, le=100)
     llm_circuit_reset_seconds: int = Field(default=60, ge=1, le=3600)
     llm_fake_model: str = "fake-1"
+    # OpenCode Zen free-tier chat models (official docs, 2026-10-24).
+    llm_opencode_base_url: str = "https://opencode.ai/inference/openai/v1"
+    llm_opencode_api_key: SecretStr | None = None
+    llm_opencode_model: str = "deepseek-v4.1-flash-free"
+    llm_opencode_fallback_model: str = "glm-5.3-flash-free"
+    llm_opencode_review_model: str = "beam-free"
+    llm_opencode_no_training: bool = True
+    llm_opencode_synthetic_only: bool = False
     llm_openai_base_url: str = "https://api.openai.com/v1"
     llm_openai_model: str = ""
     llm_openai_api_key: SecretStr | None = None
@@ -182,6 +199,28 @@ class Settings(BaseSettings):
     def _escalation_before_expiry(self) -> Settings:
         if self.approval_escalation_minutes >= self.approval_ttl_minutes:
             raise ValueError("APPROVAL_ESCALATION_MINUTES must be less than APPROVAL_TTL_MINUTES")
+        return self
+
+    @model_validator(mode="after")
+    def _resolve_llm_provider(self) -> Settings:
+        """Accept the owner's singular ``LLM_PROVIDER`` alias.
+
+        ``LLM_PROVIDER=opencode`` is the documented switch; the list form stays
+        available for multi-provider chains. The singular value wins when both
+        are set so a stale list cannot silently override the owner's choice.
+        """
+
+        if self.llm_provider:
+            provider = self.llm_provider.strip().lower()
+            if not provider:
+                raise ValueError("LLM_PROVIDER must not be empty")
+            self.llm_provider_chain = [provider]
+        try:
+            ZoneInfo(self.llm_accounting_timezone)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(
+                f"unknown LLM_ACCOUNTING_TIMEZONE: {self.llm_accounting_timezone!r}"
+            ) from exc
         return self
 
     @model_validator(mode="after")
@@ -226,7 +265,14 @@ class Settings(BaseSettings):
             raise ValueError("MODE=live refused: the fake LLM provider is test-only")
         llm_missing: list[str] = []
         for name in chain:
-            if name in {"openai", "openai_compatible"}:
+            if name == "opencode":
+                if not self.llm_opencode_api_key:
+                    llm_missing.append("LLM_OPENCODE_API_KEY")
+                if not (self.llm_model or self.llm_opencode_model):
+                    llm_missing.append("LLM_MODEL")
+                if not self.llm_opencode_base_url.startswith("https://"):
+                    raise ValueError("MODE=live refused: LLM_OPENCODE_BASE_URL must use https://")
+            elif name in {"openai", "openai_compatible"}:
                 if not self.llm_openai_api_key:
                     llm_missing.append("LLM_OPENAI_API_KEY")
                 if not self.llm_openai_model:

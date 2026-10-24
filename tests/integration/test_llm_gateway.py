@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
+from travelos.core.clock import Clock, ManualClock
 from travelos.core.errors import AppendOnlyError
 from travelos.core.models import AuditLog, HumanTask
 from travelos.llm.cache import ResponseCache
@@ -78,12 +80,14 @@ def build_gateway(
     cache: ResponseCache | None = None,
     budget: int | None = None,
     data_class: str = "customer",
+    clock: Clock | None = None,
 ) -> LLMGateway:
     return LLMGateway(
         providers=providers,
         prompts=PromptRegistry(write_prompt(root, data_class=data_class)),
         cache=cache,
         daily_budget_paise=budget,
+        clock=clock,
         max_attempts=1,
         backoff_seconds=0.01,
         sleep=lambda _seconds: None,
@@ -228,6 +232,78 @@ def test_budget_blocks_the_call_before_a_provider_is_used(tmp_path: Path, db: Se
     assert rows(db)[-1].status == "budget_blocked"
     task = db.execute(select(HumanTask)).scalar_one()
     assert task.task_type == "llm.budget_exceeded"
+
+
+def test_zero_budget_allows_an_explicitly_free_provider(tmp_path: Path, db: Session) -> None:
+    provider = FakeProvider(
+        responses=['{"intent":"book"}'],
+        pricing=ProviderPricing(free=True),
+    )
+    gateway = build_gateway(tmp_path, [provider], budget=0)
+
+    result = call(gateway, db)
+
+    assert provider.calls == 1
+    assert result.cost_paise == 0
+    assert rows(db)[-1].status == "success"
+
+
+def test_zero_budget_refuses_unpriced_providers(tmp_path: Path, db: Session) -> None:
+    provider = FakeProvider(responses=['{"intent":"book"}'])
+    gateway = build_gateway(tmp_path, [provider], budget=0)
+
+    with pytest.raises(LLMBudgetExceededError):
+        call(gateway, db)
+
+    assert provider.calls == 0
+    blocked = rows(db)[-1]
+    assert blocked.status == "budget_blocked"
+    assert "free providers only" in (blocked.error or "")
+    task = db.execute(select(HumanTask)).scalar_one()
+    assert task.task_type == "llm.budget_exceeded"
+
+
+def test_zero_budget_uses_the_free_provider_in_a_mixed_chain(tmp_path: Path, db: Session) -> None:
+    paid = FakeProvider(name="paid", responses=['{"intent":"book"}'])
+    free = FakeProvider(
+        name="free",
+        responses=['{"intent":"book"}'],
+        pricing=ProviderPricing(free=True),
+    )
+    gateway = build_gateway(tmp_path, [paid, free], budget=0)
+
+    result = call(gateway, db)
+
+    assert result.provider == "free"
+    assert paid.calls == 0
+    assert free.calls == 1
+
+
+def test_budget_day_resets_at_indian_midnight(tmp_path: Path, db: Session) -> None:
+    # 19:00 UTC on 24 Oct is 00:30 IST on 25 Oct: the spend belongs to the
+    # same Indian accounting day as the call below, so the budget is exhausted.
+    db.add(
+        LLMCall(
+            provider="fake",
+            model="fake-1",
+            prompt_name="gateway_test",
+            prompt_version=1,
+            data_class="customer",
+            status="success",
+            cost_paise=10,
+            currency="INR",
+            created_at=datetime(2026, 10, 24, 19, 0, tzinfo=UTC),
+        )
+    )
+    db.flush()
+    clock = ManualClock(datetime(2026, 10, 25, 5, 0, tzinfo=UTC))
+    provider = FakeProvider(responses=['{"intent":"book"}'])
+    gateway = build_gateway(tmp_path, [provider], budget=10, clock=clock)
+
+    with pytest.raises(LLMBudgetExceededError):
+        call(gateway, db)
+
+    assert provider.calls == 0
 
 
 def test_cache_hit_avoids_a_second_provider_call(tmp_path: Path, db: Session) -> None:

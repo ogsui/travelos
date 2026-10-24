@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from travelos.core.clock import ManualClock
 from travelos.llm.cache import CachedResponse, ResponseCache
 from travelos.llm.circuit import CircuitBreaker
+from travelos.llm.gateway import accounting_day_start
 from travelos.llm.types import DataClass, ProviderPolicy, ProviderPricing
 
 
@@ -23,6 +25,26 @@ def test_cost_is_integer_paise_and_rounds_up() -> None:
 def test_negative_pricing_is_rejected() -> None:
     with pytest.raises(ValueError):
         ProviderPricing(input_paise_per_million=-1)
+
+
+def test_free_pricing_must_actually_be_zero() -> None:
+    assert ProviderPricing(free=True).cost_paise(1_000_000, 1_000_000) == 0
+
+    with pytest.raises(ValueError, match="free provider"):
+        ProviderPricing(input_paise_per_million=1, free=True)
+
+
+def test_accounting_day_starts_at_indian_midnight() -> None:
+    kolkata = ZoneInfo("Asia/Kolkata")
+    # 20:00 UTC on 24 Oct is 01:30 IST on 25 Oct, so the Indian day began at
+    # 18:30 UTC on 24 Oct.
+    start = accounting_day_start(datetime(2026, 10, 24, 20, 0, tzinfo=UTC), kolkata)
+
+    assert start == datetime(2026, 10, 24, 18, 30, tzinfo=UTC)
+
+    # 18:29 UTC is still 23:59 IST on the previous Indian day.
+    before = accounting_day_start(datetime(2026, 10, 24, 18, 29, tzinfo=UTC), kolkata)
+    assert before == datetime(2026, 10, 23, 18, 30, tzinfo=UTC)
 
 
 def test_policy_only_allows_synthetic_on_a_training_provider() -> None:

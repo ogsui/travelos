@@ -84,7 +84,7 @@ All model calls go through `llm/gateway`:
 - Placeholders replace PII before the call; the mapping stays in process memory and is restored in the answer. Stored requests/responses keep placeholders.
 - Outputs are validated against the JSON Schema declared by the prompt; one repair retry; then the next provider, and finally a high-priority human task.
 - LLMs never call tools directly: the request type has no tool/function field. They return proposals; the ActionPolicy layer decides (auto, approval, or deny).
-- Every attempt is recorded in append-only `llm_calls` with integer-paise cost, tokens, latency, redacted bodies and hashes; budget checks and a development-only response cache sit in front of the provider chain.
+- Every attempt is recorded in append-only `llm_calls` with integer-paise cost, tokens, latency, redacted bodies and hashes; budget checks and a development-only response cache sit in front of the provider chain. The budget day follows `LLM_ACCOUNTING_TIMEZONE` (IST), a ₹0 budget allows only explicitly free providers, and a nightly audited purge enforces the owner's 90-day retention.
 
 ## Reliability patterns
 Timeouts everywhere; retries with jittered backoff; circuit breakers per adapter; idempotency keys on every external write; transactional outbox; dead-letter queue with a dashboard; graceful degradation (competitor data missing -> quote anyway, flagged); feature-flag kill switches; schema migrations backwards compatible.

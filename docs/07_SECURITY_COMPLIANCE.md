@@ -22,7 +22,7 @@
 
 ## LLM-specific security
 - **Prompt injection**: all customer/email/web/supplier text is untrusted data, delimited, never in system prompts. The model returns proposals; code decides. No tool access from inbound text. URLs from messages are never fetched without an allowlist.
-- **Data leakage**: redact PII before calls (placeholders); data-class vs provider-policy enforcement; no real data to free-tier providers; `llm_calls` stores metadata, token/cost counts and redacted text only, never the reversible placeholder mapping.
+- **Data leakage**: redact PII before calls (placeholders); data-class vs provider-policy enforcement; no real data to free-tier providers; `llm_calls` stores metadata, token/cost counts and redacted text only, never the reversible placeholder mapping. Redacted rows are purged after 90 days (`LLM_CALL_RETENTION_DAYS`) by an audited maintenance task; the purge cannot be widened to UPDATE/TRUNCATE.
 - **Hallucination controls**: schema validation; facts (prices, availability, policies, visa) come only from system data or approved KB, else "to be confirmed by staff".
 - **Abuse**: per-contact rate limits, length limits, attachment scanning.
 - Red-team suite `tests/eval/test_llm_injection.py` runs in CI against `data/eval/llm_injection.jsonl` (see `08_TESTING_EVAL.md`).

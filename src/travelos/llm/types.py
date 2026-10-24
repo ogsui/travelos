@@ -59,15 +59,23 @@ class ProviderPricing:
     Rates default to zero until the owner supplies a signed-off price list;
     inventing a price would silently corrupt the cost ledger. Cost rounds up to
     the next paise, so a call is never under-charged.
+
+    ``free`` is an explicit declaration, never inferred from a zero rate:
+    ``0`` normally means "not priced yet". A daily budget of ``0`` only routes
+    to providers that declare ``free=True``, so an unpriced paid provider can
+    never be used for free.
     """
 
     input_paise_per_million: int = 0
     output_paise_per_million: int = 0
     currency: str = "INR"
+    free: bool = False
 
     def __post_init__(self) -> None:
         if self.input_paise_per_million < 0 or self.output_paise_per_million < 0:
             raise ValueError("token prices must not be negative")
+        if self.free and (self.input_paise_per_million or self.output_paise_per_million):
+            raise ValueError("a free provider must have zero input and output prices")
         if len(self.currency) != 3 or not self.currency.isalpha():
             raise ValueError("currency must be a three-letter code")
 

@@ -38,13 +38,21 @@ Rule: official API first; mock always present; fragile options OFF by default. N
 - Provider payloads are sent with `temperature` and `max_tokens` from the prompt spec. There is no streaming and no tool/function calling in this layer.
 - Prompt and response bodies are logged redacted in `llm_calls`; raw keys and Authorization headers are never logged. Prompts are rendered from `prompts/*.md` (see `prompts/README.md`).
 - Pricing is integer paise per million input/output tokens (`LLM_*_INPUT_PAISE_PER_MILLION`, `LLM_*_OUTPUT_PAISE_PER_MILLION`). Defaults are `0`, meaning unpriced rather than free; the owner must supply a price list before live cost reporting is meaningful. Cost is rounded up to the next paise and never uses a float.
+- `ProviderPricing.free` is an explicit declaration and must have zero rates. A daily budget of `0` means "free providers only": the gateway filters the chain to providers with `free=True` and blocks with `budget_blocked` if none remain. `0` never means "no cap". Only model IDs ending in `-free` are marked free automatically, so a paid or unpriced model is blocked under a zero budget.
+- The daily budget uses the configured accounting timezone (`LLM_ACCOUNTING_TIMEZONE`, default `Asia/Kolkata`), not UTC. Spend resets at local midnight; a call at 00:30 IST belongs to that Indian day.
+- `llm_calls` rows older than `LLM_CALL_RETENTION_DAYS` (default 90) are deleted by the `travelos.llm.purge_expired` beat task. The purge is the only path allowed past the append-only trigger, runs in one transaction, and writes an `llm.calls_purged` audit row with counts and the cutoff.
+
+### Configured provider (owner decision, 2026-10-24)
+- `LLM_PROVIDER=opencode` expands to the primary `LLM_MODEL=deepseek-v4.1-flash-free` and then `LLM_FALLBACK_MODEL=glm-5.3-flash-free`, both through the OpenAI-compatible adapter at `https://opencode.ai/inference/openai/v1/chat/completions`. Setting `LLM_FALLBACK_MODEL=` (empty) disables the fallback.
+- The owner's daily budget is `0`, so both models must stay free. `LLM_OPENCODE_REVIEW_MODEL=beam-free` is reserved for the later reasoning/review step and is not in the chain yet.
+- Redaction, prompt-injection checks and data-class downgrade prevention stay enabled for every provider. A free-tier provider is not automatically trusted: `LLM_OPENCODE_NO_TRAINING=true` and `LLM_OPENCODE_SYNTHETIC_ONLY=false` are the recorded policy flags, and customer data is still redacted. Beam Free is no-training but retains data for 30 days, so it must not receive customer data without a fresh owner decision.
 
 ### TODO(owner) — LLM account manager
-1. Which provider(s) and exact model IDs should be primary and fallback?
-2. What is the per-million-token price (input/output, and any cached-input or batch discount) in INR, with an effective date?
-3. Is a no-training / data-processing addendum available for `customer` data, and what is the data-residency region?
-4. What are the account rate limits (requests and tokens per minute) and the retry guidance?
-5. Which model context window and max-output limit apply, so prompt `max_tokens` values stay valid?
+1. OpenCode's documentation says free-tier chat models require the OpenCode client; confirm that a normal server-side `POST /chat/completions` with an API key works without it. Until a synthetic test call succeeds, the OpenCode path is configured but unverified.
+2. Paid OpenCode price list (input/output, cached input, batch discount) in INR with an effective date; the repository treats non-`-free` models as unpriced.
+3. Account rate limits (requests and tokens per minute), retry guidance, context window and max-output limits.
+4. Is a no-training / data-processing addendum available for `customer` data, and what is the data-residency region?
+5. May `beam-free` ever see customer data, given its 30-day retention, or should it stay synthetic-only?
 
 ## Scraping policy (MKT-1)
 - Public pages only, no login, per-site flag default OFF; enabling requires the owner to record a decision in `docs/DECISIONS.md` (site, date, rationale, robots.txt and ToS reviewed).

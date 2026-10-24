@@ -26,6 +26,7 @@ def test_workflow_tasks_are_registered() -> None:
         "travelos.outbox.dispatch",
         "travelos.timers.fire_due",
         "travelos.sessions.purge_expired",
+        "travelos.llm.purge_expired",
         "travelos.autonomy.demote",
     ):
         assert name in celery_app.tasks, name
@@ -40,6 +41,7 @@ def test_beat_schedule_runs_outbox_and_timers_regularly() -> None:
     assert schedule["fire-due-timers"]["task"] == "travelos.timers.fire_due"
     assert schedule["fire-due-timers"]["schedule"] == settings.timer_poll_seconds
     assert schedule["purge-expired-sessions"]["task"] == "travelos.sessions.purge_expired"
+    assert schedule["purge-expired-llm-calls"]["task"] == "travelos.llm.purge_expired"
     assert schedule["autonomy-demote"]["task"] == "travelos.autonomy.demote"
 
 

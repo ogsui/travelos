@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from travelos.core.clock import Clock
 from travelos.core.config import get_settings
 from travelos.core.db import session_scope
+from travelos.llm.retention import LLMCallRetentionService
 from travelos.security.sessions import AuthSessionService
 from travelos.worker.celery_app import celery_app
 from travelos.worker.runtime import get_session_factory
@@ -95,6 +96,23 @@ def purge_expired_sessions() -> int:
     )
     with session_scope(get_session_factory()) as db:
         return service.purge_expired(db)
+
+
+@celery_app.task(name="travelos.llm.purge_expired")  # type: ignore[untyped-decorator]
+def purge_expired_llm_calls() -> int:
+    """Daily: delete redacted LLM call metadata past the owner's retention period."""
+
+    settings = get_settings()
+    service = LLMCallRetentionService(retention_days=settings.llm_call_retention_days)
+    with session_scope(get_session_factory()) as db:
+        report = service.purge(db)
+    if report.deleted:
+        logger.info(
+            "purged %s LLM call row(s) older than %s",
+            report.deleted,
+            report.cutoff.isoformat(),
+        )
+    return report.deleted
 
 
 @celery_app.task(name="travelos.autonomy.demote")  # type: ignore[untyped-decorator]

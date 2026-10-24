@@ -36,6 +36,10 @@ celery_app.conf.update(
             "task": "travelos.sessions.purge_expired",
             "schedule": crontab(hour=3, minute=15),
         },
+        "purge-expired-llm-calls": {
+            "task": "travelos.llm.purge_expired",
+            "schedule": crontab(hour=3, minute=30),
+        },
         "autonomy-demote": {
             "task": "travelos.autonomy.demote",
             "schedule": crontab(hour=2, minute=30),

@@ -139,6 +139,35 @@ def test_live_requires_the_provider_key_and_https_base_url() -> None:
         live_settings(llm_openai_base_url="http://llm.example.test/v1")
 
 
+def test_singular_llm_provider_sets_the_chain() -> None:
+    settings = Settings(_env_file=None, llm_provider="opencode")
+
+    assert settings.llm_provider_chain == ["opencode"]
+
+
+def test_unknown_llm_accounting_timezone_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="LLM_ACCOUNTING_TIMEZONE"):
+        Settings(_env_file=None, llm_accounting_timezone="Mars/Olympus")
+
+
+def test_live_opencode_requires_its_key() -> None:
+    with pytest.raises(ValidationError, match="LLM_OPENCODE_API_KEY"):
+        live_settings(llm_provider_chain=["opencode"], llm_opencode_api_key=None)
+
+
+def test_live_accepts_opencode_free_models_with_zero_budget() -> None:
+    settings = live_settings(
+        llm_provider_chain=["opencode"],
+        llm_opencode_api_key=SecretStr("synthetic-not-a-real-key"),
+        llm_model="deepseek-v4.1-flash-free",
+        llm_fallback_model="glm-5.3-flash-free",
+        llm_daily_budget_paise=0,
+    )
+
+    assert settings.llm_provider_chain == ["opencode"]
+    assert settings.llm_daily_budget_paise == 0
+
+
 def test_live_accepts_fully_configured_settings() -> None:
     settings = live_settings()
 

@@ -25,8 +25,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from time import perf_counter
-from typing import Any
+from typing import Any, NoReturn
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -98,6 +99,7 @@ class LLMGateway:
         audit: AuditWriter | None = None,
         cache: ResponseCache | None = None,
         daily_budget_paise: int | None = None,
+        accounting_timezone: str = "Asia/Kolkata",
         max_attempts: int = 3,
         backoff_seconds: float = 1.0,
         circuit_failure_threshold: int = 3,
@@ -112,6 +114,11 @@ class LLMGateway:
             raise ValueError("backoff_seconds must be positive")
         if daily_budget_paise is not None and daily_budget_paise < 0:
             raise ValueError("daily_budget_paise must not be negative")
+        try:
+            zone = ZoneInfo(accounting_timezone)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"unknown accounting timezone: {accounting_timezone!r}") from exc
+        self._accounting_timezone = zone
         self._providers = tuple(providers)
         self._prompts = prompts
         self._clock = clock or SystemClock()
@@ -227,31 +234,37 @@ class LLMGateway:
                     actor_id=actor_id,
                 )
 
-        spent = self._spent_today(db, tenant)
-        if self._budget is not None and spent >= self._budget:
-            row = self._record_call(
-                db,
-                tenant=tenant,
-                spec=spec,
-                data_class=chosen_class,
-                status="budget_blocked",
-                request_payload=request_payload,
-                provider=None,
-                response=None,
-                error=f"daily budget exhausted ({spent}/{self._budget} paise)",
-                latency_ms=0,
-                cached=False,
-                repairs=0,
-                actor_id=actor_id,
-            )
-            self._human_task(
-                db,
-                tenant,
-                row,
-                task_type="llm.budget_exceeded",
-                title=f"LLM daily budget exhausted for {spec.name} v{spec.version}",
-            )
-            raise LLMBudgetExceededError(spent, self._budget)
+        if self._budget is not None:
+            spent = self._spent_today(db, tenant)
+            if self._budget == 0:
+                # Zero means "free providers only", never "no cap". Providers
+                # that are merely unpriced are not free and stay excluded.
+                eligible = tuple(provider for provider in eligible if provider.pricing.free)
+                if not eligible:
+                    self._budget_blocked(
+                        db,
+                        tenant=tenant,
+                        spec=spec,
+                        data_class=chosen_class,
+                        request_payload=request_payload,
+                        spent=spent,
+                        actor_id=actor_id,
+                        reason=(
+                            "daily budget is 0 (free providers only) and none of the "
+                            "configured providers declares free pricing"
+                        ),
+                    )
+            elif spent >= self._budget:
+                self._budget_blocked(
+                    db,
+                    tenant=tenant,
+                    spec=spec,
+                    data_class=chosen_class,
+                    request_payload=request_payload,
+                    spent=spent,
+                    actor_id=actor_id,
+                    reason=f"daily budget exhausted ({spent}/{self._budget} paise)",
+                )
 
         failures: list[str] = []
         total_cost = 0
@@ -628,8 +641,45 @@ class LLMGateway:
             repairs=entry.repairs,
         )
 
+    def _budget_blocked(
+        self,
+        db: Session,
+        *,
+        tenant: UUID,
+        spec: PromptSpec,
+        data_class: DataClass,
+        request_payload: Mapping[str, Any],
+        spent: int,
+        actor_id: UUID | None,
+        reason: str,
+    ) -> NoReturn:
+        assert self._budget is not None  # only called from the budget check
+        row = self._record_call(
+            db,
+            tenant=tenant,
+            spec=spec,
+            data_class=data_class,
+            status="budget_blocked",
+            request_payload=request_payload,
+            provider=None,
+            response=None,
+            error=reason,
+            latency_ms=0,
+            cached=False,
+            repairs=0,
+            actor_id=actor_id,
+        )
+        self._human_task(
+            db,
+            tenant,
+            row,
+            task_type="llm.budget_exceeded",
+            title=f"LLM daily budget exhausted for {spec.name} v{spec.version}",
+        )
+        raise LLMBudgetExceededError(spent, self._budget)
+
     def _spent_today(self, db: Session, tenant: UUID) -> int:
-        start = utc_day_start(self._clock.now())
+        start = accounting_day_start(self._clock.now(), self._accounting_timezone)
         total = db.execute(
             select(func.coalesce(func.sum(LLMCall.cost_paise), 0)).where(
                 LLMCall.tenant_id == tenant,
@@ -857,7 +907,13 @@ def _elapsed_ms(started: float) -> int:
     return max(0, int((perf_counter() - started) * 1000))
 
 
-def utc_day_start(now: datetime) -> datetime:
-    """Exported for tests and budget dashboards."""
+def accounting_day_start(now: datetime, timezone: ZoneInfo) -> datetime:
+    """Start of the business accounting day, returned in UTC.
 
-    return now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    Budgets reset at local midnight (Asia/Kolkata by default), not UTC
+    midnight: a call made at 03:00 IST belongs to that Indian day.
+    """
+
+    local = now.astimezone(timezone)
+    start = local.replace(hour=0, minute=0, second=0, microsecond=0)
+    return start.astimezone(UTC)
