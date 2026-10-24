@@ -1,0 +1,55 @@
+# Copy to config/business_rules.yaml and fill with the owner's real rules.
+# Values are PLACEHOLDERS (null). Never guess tax or margin values; every `# ACCOUNTANT` item must be confirmed.
+version: 1
+agency:
+  name: null
+  legal_name: null
+  gstin: null            # ACCOUNTANT
+  address: null
+  timezone: Asia/Kolkata
+  languages: [en, hi, hinglish]
+  working_hours: {start: null, end: null, days: []}
+  brand_voice_samples: []   # paste 10-20 real messages/posts
+pricing:
+  currency: INR
+  rounding: {mode: null, step_paise: null}
+  quote_validity_hours: null
+  revalidation_tolerance: {absolute_paise: null, percent: null}
+  forex_buffer_percent: null
+  gateway_fee_policy: null   # passthrough | absorb
+  margins:                   # per product_type; fill every type you sell
+    flight_domestic:      {min_paise: null, min_percent: null, target_percent: null, max_percent: null}
+    flight_international: {min_paise: null, min_percent: null, target_percent: null, max_percent: null}
+    hotel:                {min_paise: null, min_percent: null, target_percent: null, max_percent: null}
+    package_family:       {min_paise: null, min_percent: null, target_percent: null, max_percent: null}
+    package_corporate:    {min_paise: null, min_percent: null, target_percent: null, max_percent: null}
+    package_group:        {min_paise: null, min_percent: null, target_percent: null, max_percent: null}
+    transfer:             {min_paise: null, min_percent: null, target_percent: null, max_percent: null}
+    activity:             {min_paise: null, min_percent: null, target_percent: null, max_percent: null}
+    visa:                 {min_paise: null, min_percent: null, target_percent: null, max_percent: null}
+  segments_discount_budget_percent: {new: null, repeat: null, corporate: null, referral: null, group: null}
+  competitor: {max_age_minutes: null, min_comparability: null, undercut_paise: null}
+tax:   # ACCOUNTANT: reference to approved tax table version; do not hard-code rates here
+  tax_table_version: null
+  gst_basis_by_product: {}
+  tcs: {enabled: null, rules_ref: null}
+payments:
+  advance_percent_by_product: {}
+  instalment_templates: {}
+  reminder_cadence_hours: []
+cancellation:
+  policy_text_ref: null
+  amendment_fee_paise_by_product: {}
+approvals:
+  four_eyes_threshold_paise: null
+  escalation_after_minutes: {agent_to_owner: null}
+  paging_contacts: []        # staff phone numbers for urgent issues (store in secrets, not here)
+outreach:
+  frequency_caps: {per_contact_per_week: null, per_contact_per_month: null}
+  send_window_local: {start: null, end: null}
+  cold_outreach_enabled: false   # LOCKED OFF
+marketing:
+  posting_schedule_defaults: {}
+  ad_caps_paise: {daily: null, monthly: null, per_campaign: null}
+  topics_priority: []
+retention_days: {messages: null, quotes: null, passport_data_after_travel: null, invoices: null}

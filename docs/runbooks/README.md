@@ -1,0 +1,1 @@
+Runbooks (created in task 037/038): wrong message sent · wrong price quoted · double booking · data leak · supplier outage · WhatsApp number restricted · payment mismatch · restore from backup · enable/disable kill switches.
