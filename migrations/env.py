@@ -9,7 +9,8 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 import travelos.core.models
-import travelos.crm.models  # noqa: F401  (registers CRM tables)
+import travelos.crm.models
+import travelos.workflow.models  # noqa: F401  (registers workflow tables)
 from travelos.core.config import get_settings
 from travelos.core.db import Base
 

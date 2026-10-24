@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import inspect, text
@@ -14,6 +15,7 @@ from travelos.core.errors import AppendOnlyError
 from travelos.core.models import AuditLog, User
 from travelos.crm.models import Consent, Contact, Customer, Traveller
 from travelos.security.encryption import ENCRYPTED_PREFIX
+from travelos.workflow.models import WorkflowTimer
 
 pytestmark = pytest.mark.integration
 
@@ -33,6 +35,7 @@ BUSINESS_TABLES = {
     "suppression_list",
     "travellers",
     "users",
+    "workflow_timers",
 }
 
 
@@ -209,6 +212,10 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
         "sessions": {"ix_sessions_user_id", "ix_sessions_expires_at"},
         "suppression_list": {"ix_suppression_list_value_hash"},
         "human_tasks": {"ix_human_tasks_status_due", "ix_human_tasks_assignee"},
+        "workflow_timers": {
+            "ix_workflow_timers_status_due",
+            "ix_workflow_timers_subject",
+        },
     }
     for table, names in expected_indexes.items():
         actual = {index["name"] for index in inspector.get_indexes(table)}
@@ -220,6 +227,9 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
         "suppression_list": {("channel", "value_hash")},
         "autonomy_policies": {("tenant_id", "action_type")},
         "business_rule_versions": {("tenant_id", "version"), ("tenant_id", "yaml_hash")},
+        "workflow_timers": {
+            ("tenant_id", "name", "subject_type", "subject_id"),
+        },
     }
     for table, expected in expected_unique.items():
         actual = {tuple(c["column_names"]) for c in inspector.get_unique_constraints(table)}
@@ -324,8 +334,6 @@ def test_consent_rejects_unknown_purpose_and_status(db: Session) -> None:
 
 
 def test_consent_requires_an_existing_contact(db: Session) -> None:
-    from uuid import uuid4
-
     db.add(
         Consent(
             contact_id=uuid4(),
@@ -351,6 +359,22 @@ def test_negative_lifetime_value_is_rejected(db: Session) -> None:
     )
 
     with pytest.raises(IntegrityError, match="lifetime_value_non_negative"):
+        db.flush()
+    db.rollback()
+
+
+def test_workflow_timer_rejects_an_unknown_status(db: Session) -> None:
+    db.add(
+        WorkflowTimer(
+            name="quote.expiry",
+            subject_type="quote",
+            subject_id=uuid4(),
+            due_at=datetime(2026, 1, 1, tzinfo=UTC),
+            status="someday",
+        )
+    )
+
+    with pytest.raises(IntegrityError, match="ck_workflow_timers_status"):
         db.flush()
     db.rollback()
 

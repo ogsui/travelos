@@ -10,5 +10,6 @@ Unrelated findings discovered while working on a task go here (one line each: wh
 - MFA has no recovery path. An owner/admin who loses their authenticator cannot log in. Decide an owner-approved recovery flow (one-time recovery codes or a second owner reset) before pilot; do not add bypass in a hurry.
 - First-time MFA enrollment is gated only by the password. A stolen password could enroll an attacker's authenticator before the real owner does. Add an out-of-band check (email/SMS to the recorded owner number, or an existing owner confirming) before the first production owner enrollment.
 - `users.email` uniqueness is case-sensitive while login matches `lower(email)`; normalise on write or use a `lower(email)` unique index before user management ships (task 003 keeps emails lower-case but does not enforce it at the DB).
-- `AuthSessionService.purge_expired()` exists but no scheduled job calls it; wire it to a daily Celery beat task when the worker lands (task 004).
 - `MIN_PASSWORD_LENGTH` is defined but no user-management flow enforces it yet; enforce a length/complexity policy and breached-password check when staff accounts are created.
+- Outbox dead letters create human tasks but nothing alerts on them yet; add a dashboard count + alert on `task_type=outbox.dead_letter` and `status=open` (task 017 / task 037).
+- Timer defaults in `workflow/timers.py` are placeholders (15 min SLA, 7-day quote expiry, etc.); owner-approved values from `config/business_rules.yaml` must override them before shadow/live.

@@ -75,6 +75,8 @@ Layering inside each module: `domain/` (pure) -> `services/` -> `adapters/` -> `
 - **Campaign**: DRAFT -> AUDIENCE_PENDING -> CONTENT_PENDING -> SCHEDULED -> RUNNING -> PAUSED | COMPLETED.
 - **ContentItem**: IDEA -> DRAFT -> PENDING_APPROVAL -> SCHEDULED -> PUBLISHED -> ANALYZED | REJECTED.
 
+Implementation note (task 004): the definitions live in `workflow/definitions.py` as immutable data. `TICKETING -> FAILED_PARTIAL -> NEEDS_HUMAN` is the escalation path. Campaign additionally allows `PAUSED -> RUNNING` (`resume`) so an operator can recover a paused campaign; this is the only edge beyond the list above. Transition effects are event-type names written to the transactional outbox. Guards use fail-closed booleans (`approved`, `human_confirmed`, `audience_approved`, `content_approved`); a missing or non-`True` value rejects the transition.
+
 ## LLM architecture
 All model calls go through `llm/gateway`:
 - Providers: Fake (tests), OpenAI-compatible (covers OpenCode Zen, OpenRouter, local servers, and other compatible endpoints), Anthropic. Each has policy flags: `no_training`, `synthetic_only`.

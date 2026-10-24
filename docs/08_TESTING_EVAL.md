@@ -7,6 +7,8 @@ Database integration tests start a bundled PostgreSQL 16 through the dev-only `p
 
 Auth tests (task 003) clone a migrated template database per test. They cover Argon2 hashing, RFC 6238 TOTP vectors, the role/permission matrix, session expiry/revocation, audit redaction and diffs, flag cache TTL/invalidation, and the HTTP surface: every route has an allowed and a denied role test (or an explicit public test), plus a registry test that fails when a new route is added without a matching access test. Login, MFA, permission denials and flag writes are asserted against real `audit_log` rows.
 
+Workflow tests (task 004) are table-driven from a hand-written copy of the documented state machines, so a drifted definition fails. Every `(state, trigger)` pair is exercised, including wildcard inquiry exits and terminal states; guards are tested with and without their context flag. A Hypothesis test fires arbitrary triggers and asserts no undeclared target is ever produced. Outbox tests cover success, duplicate delivery (handler runs once), retry timing with a `ManualClock`, dead-letter human tasks, batch limits, chained events and the worker entry point. Timer tests cover fake-clock firing, fire-once, re-arm, cancel and the timer defaults. `tests/unit/test_worker.py` checks Celery registration and the beat schedule without a broker.
+
 ## Synthetic dataset (task 007) — everything obviously fake
 | Set | Size / content |
 |---|---|

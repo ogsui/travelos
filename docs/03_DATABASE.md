@@ -5,7 +5,7 @@
 - Money: `<name>_paise BIGINT` + `currency CHAR(3)`. No float/numeric money columns (a test scans the models).
 - Enums stored as text with CHECK constraints. JSONB only for raw provider payloads and immutable snapshots.
 - (enc) = field-level encrypted. PII never appears in logs or LLM prompts unredacted.
-- Append-only tables (`audit_log`, `llm_calls`, `price_snapshots`, `outbox_events` history) have UPDATE/DELETE revoked or trigger-blocked.
+- Append-only tables (`audit_log`, `llm_calls`, `price_snapshots`) have UPDATE/DELETE revoked or trigger-blocked. `outbox_events` is deliberately mutable: `status`, `attempts` and `available_at` move through the delivery state machine.
 - Every external write carries an `idempotency_key` (unique).
 
 ## Identity & platform
@@ -100,4 +100,13 @@ Unique: `messages(channel, external_id)`, `payments(gateway_ref)`, `invoices(ser
 - `audit_log` writes go through `core.audit.AuditWriter`. `record()` stores redacted JSON payloads; `record_change()` stores only fields that actually differ (`build_diff`), with credentials, emails, phones, passport numbers and ciphertext masked. The writer joins the caller's transaction: a state change and its audit row commit or roll back together. Login success/failure, MFA outcomes, logout, permission denials and flag changes are all recorded.
 - `feature_flags` is the owner-level switch (scope `global`, `value = {"enabled": bool}`, `updated_by`). Absent row means OFF. `core.features.FeatureFlagService` combines it with the deployment kill switch (`KILL_SWITCHES__<NAME>`): an operator OFF cannot be overridden by a database row, and an operator ON still needs an explicit owner row before the capability runs. Reads are cached per `(tenant, key, scope)` for 30 seconds; every write invalidates the key immediately. Malformed JSON values fail closed.
 - Permission denials are committed as `auth.permission_denied` before the 403 is returned, so probes against forbidden routes leave a trail. All flag writes require `flags:write`, which only the owner role holds.
+
+## Workflow engine, timers & outbox (task 004)
+- `workflow_timers` (name, subject_type/id, due_at, payload JSONB, status, fired_at, cancelled_at). One row per `(tenant_id, name, subject_type, subject_id)` (`uq_workflow_timers_subject`), so re-arming a reminder updates `due_at` instead of inserting duplicates. `ix_workflow_timers_status_due` serves the due scan; a CHECK permits only `scheduled`, `fired`, `cancelled`.
+- Migration `0003_workflow_timers` adds the table. Timers are one-shot: `TimerService.fire_due` marks due rows `fired` and writes a `timer.fired` outbox event plus a `workflow.timer_fired` audit row in the same transaction. Re-arming a fired timer is allowed; firing is guarded by `FOR UPDATE SKIP LOCKED` and the status transition, so duplicate beat runs cannot fire once more.
+- `outbox_events` is written in the producer's transaction. The dispatcher claims due rows with `FOR UPDATE SKIP LOCKED`, calls one handler, then marks `done`, schedules a jittered exponential retry (`attempts`, `available_at`, `last_error`) or marks the event `dead`. Defaults: 5 attempts, 10 s base, 1 h cap, 20% jitter, batches of 25 (`OUTBOX_*` settings).
+- Dead letters create a `human_tasks` row (`task_type=outbox.dead_letter`, `priority=high`, `assignee_role=admin`) and are not silently dropped. An event type with no registered handler is dead-lettered on its first delivery.
+- Every handler runs inside a nested transaction and an `idempotency_keys` claim (`key=outbox event id`, `scope=outbox`). A redelivery, or a worker crash after the side effect but before commit, cannot run the handler twice. The claim and the side effect share the transaction, so a rolled-back attempt is retried cleanly.
+- `WorkflowService.apply` is stateless: the domain table owns its `state` column. It fires the pure machine, writes one `workflow.transition` audit row (`before.state`, `after.state/trigger/machine`) and one outbox event per declared effect. Rejected transitions write nothing.
+- Timer defaults (`inquiry.sla` 15 min, `inquiry.follow_up`/`payment.reminder` 24 h, `quote.expiry` 7 days, `booking.hold_expiry` 30 min) are placeholders. Callers may pass an explicit `delay`/`at`; owner-approved values from `config/business_rules.yaml` should override them when those rules are wired in.
 

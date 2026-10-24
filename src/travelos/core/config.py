@@ -126,6 +126,19 @@ class Settings(BaseSettings):
     session_ttl_minutes: int = Field(default=720, ge=5, le=43_200)
     mfa_issuer: str = "TravelOS"
 
+    # Background processing (task 004). The outbox is at-least-once; workers
+    # retry with jittered exponential backoff and dead-letter after the limit.
+    outbox_max_attempts: int = Field(default=5, ge=1, le=100)
+    outbox_backoff_seconds: float = Field(default=10.0, gt=0, le=86_400)
+    outbox_max_backoff_seconds: float = Field(default=3600.0, gt=0)
+    outbox_jitter: float = Field(default=0.2, ge=0, le=1)
+    outbox_batch_size: int = Field(default=25, ge=1, le=1000)
+    outbox_poll_seconds: float = Field(default=5.0, gt=0, le=3600)
+
+    # Timers: SLAs, expiries and reminders.
+    timer_batch_size: int = Field(default=100, ge=1, le=1000)
+    timer_poll_seconds: float = Field(default=10.0, gt=0, le=3600)
+
     @model_validator(mode="after")
     def _enforce_live_safety(self) -> Settings:
         if self.mode is not Mode.LIVE:
