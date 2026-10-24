@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "travelos"
+version = "0.1.0"
+description = "AI-assisted operating system for a travel agency"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.32,<1",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+    "sqlalchemy>=2.0.36,<3",
+    "alembic>=1.14,<2",
+    "psycopg[binary]>=3.2,<4",
+    "redis>=5.2,<7",
+    "celery[redis]>=5.4,<6",
+    "httpx>=0.28,<1",
+    "tenacity>=9,<10",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<10",
+    "pytest-cov>=6,<8",
+    "hypothesis>=6.122,<7",
+    "ruff>=0.8,<1",
+    "mypy>=1.13,<2",
+    "types-redis>=4.6,<5",
+    "pre-commit>=4,<5",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "eval: LLM and quality evaluations (run with `make eval`)",
+    "integration: tests that touch infrastructure (database, redis, network)",
+]
+filterwarnings = [
+    "error",
+    # Starlette 1.x prefers its new httpx2 transport; harmless for our tests.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated.*:starlette.exceptions.StarletteDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["travelos"]
+branch = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+    "E501", # long lines in docs/URLs; formatter keeps code tidy
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["celery.*"]
+ignore_missing_imports = true

@@ -1,0 +1,98 @@
+:root {
+  color-scheme: light;
+  --ink: #10231f;
+  --muted: #5b6c67;
+  --paper: #f5f2ea;
+  --accent: #0b6b58;
+  --line: #d8d2c4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at 85% -10%, #dcefe6 0, transparent 42%),
+    var(--paper);
+  color: var(--ink);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+main {
+  margin: 0 auto;
+  max-width: 46rem;
+  padding: 4rem 1.5rem;
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+h1 {
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  margin: 0.5rem 0 1.25rem;
+  max-width: 18ch;
+}
+
+.lede {
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.7;
+  max-width: 60ch;
+}
+
+dl {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0;
+  margin-top: 3rem;
+}
+
+dl div {
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  justify-content: space-between;
+  padding: 1rem 0;
+}
+
+dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+dd {
+  margin: 0;
+}
+
+code {
+  background: #e7e2d5;
+  border-radius: 0.3rem;
+  font-size: 0.85em;
+  padding: 0.15rem 0.4rem;
+}
+
+@media (max-width: 30rem) {
+  main {
+    padding-top: 2.5rem;
+  }
+}

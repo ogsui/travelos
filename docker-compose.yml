@@ -1,0 +1,145 @@
+name: travelos
+
+x-app-environment: &app-environment
+  APP_NAME: TravelOS
+  MODE: ${MODE:-test}
+  LIVE_CONFIRMED: ${LIVE_CONFIRMED:-no}
+  ENVIRONMENT: ${ENVIRONMENT:-local}
+  TIMEZONE: Asia/Kolkata
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_JSON: "true"
+  DATABASE_URL: postgresql+psycopg://travelos:${POSTGRES_PASSWORD:-travelos}@postgres:5432/travelos
+  REDIS_URL: redis://redis:6379/0
+
+x-app-build: &app-build
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+services:
+  api:
+    <<: *app-build
+    command: ["uvicorn", "travelos.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: *app-environment
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  worker:
+    <<: *app-build
+    command:
+      [
+        "celery",
+        "-A",
+        "travelos.worker.celery_app:celery_app",
+        "worker",
+        "--loglevel=INFO",
+        "--concurrency=2",
+      ]
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  beat:
+    <<: *app-build
+    command:
+      ["celery", "-A", "travelos.worker.celery_app:celery_app", "beat", "--loglevel=INFO"]
+    environment: *app-environment
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web/dashboard
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: travelos
+      POSTGRES_USER: travelos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-travelos}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U travelos -d travelos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-travelos}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-travelos-dev-only}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.21.7
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

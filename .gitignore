@@ -1,0 +1,48 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+
+# Web assets and generated documents
+web/**/.vercel/
+media/
+exports/
+*.log
+
+# Real customer data never belongs in the repo; synthetic data does.
+data/private/
+data/raw/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

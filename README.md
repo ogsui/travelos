@@ -4,6 +4,35 @@ An AI-assisted operating system for a travel agency: lead capture, WhatsApp/emai
 
 This pack is the **blueprint and task list**, not finished code. OpenCode builds the system one small task at a time from `AGENTS.md`, `docs/` and `tasks/`.
 
+## Current status
+- **Task 001 complete** — repo scaffold, `MODE` safety gates, kill switches, structured JSON logging with redaction, `/health` + `/ready`, Docker Compose, Makefile, CI and pre-commit.
+- **Next** — task 002, core database, `Money` and encryption.
+- See `git log` for the per-task history and `tasks/INDEX.md` for the full plan.
+
+## Quickstart (Docker)
+```sh
+cp .env.example .env        # local/synthetic values only
+make up                     # api, worker, beat, web, postgres, redis, minio, mailpit
+curl http://localhost:8000/health
+curl http://localhost:8000/ready
+# dashboard http://localhost:3000 · mailpit http://localhost:8025 · minio http://localhost:9001
+```
+
+`make check` runs lint + `mypy --strict` + tests. `make logs` follows the stack; `make down` stops it.
+
+## Quickstart (no Docker, Windows or Linux)
+Python 3.12 is enough for the checks; Node 22+ is only needed for the dashboard.
+```sh
+python -m venv .venv
+# Windows:
+.venv\Scripts\pip install -e ".[dev]"
+.venv\Scripts\python -m pytest
+.venv\Scripts\ruff check .
+.venv\Scripts\mypy src
+# Linux/macOS: source .venv/bin/activate, then pip install -e ".[dev]" and make check
+```
+On Windows without GNU Make, run the underlying commands directly (`python -m pytest`, `ruff`, `mypy`) or install Make. `make up` still requires Docker Desktop.
+
 ## Start
 1. Open a terminal in this folder and run `opencode`. `AGENTS.md` and `opencode.json` load automatically.
 2. Choose a model with `/models`. Use the strongest model you have for tasks 004-006, 012, 015, 020, 021 (state machines, LLM gateway, suppliers, pricing, booking, billing). Free models are fine for UI and docs-heavy tasks if you review carefully.

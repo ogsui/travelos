@@ -43,8 +43,9 @@ You are the lead engineer on TravelOS, an AI-assisted operating system for an es
 **Auditability** — every state change, approval decision, outbound message, price calculation and LLM call writes an append-only audit/metadata record.
 
 ## Stack & commands (task 001 fills these in and keeps them current)
-Python 3.12, FastAPI, SQLAlchemy 2 + Alembic, PostgreSQL, Redis, Celery, Pydantic v2, pytest + hypothesis, ruff, mypy --strict; Next.js (TypeScript) dashboard + public site; Docker Compose; WeasyPrint (PDFs); Playwright (public-page price checks).
-`make up` · `make seed` · `make test` · `make lint` · `make typecheck` · `make check` (lint + typecheck + test) · `make eval`
+Python 3.12, FastAPI, SQLAlchemy 2 + Alembic, PostgreSQL, Redis, Celery, Pydantic v2, pytest + hypothesis, ruff, mypy --strict; Next.js 16 (TypeScript) dashboard + public site; Docker Compose; WeasyPrint (PDFs); Playwright (public-page price checks).
+`make up` · `make down` · `make seed` · `make test` · `make lint` · `make typecheck` · `make check` (lint + typecheck + test) · `make eval` · `make web-check`
+Tests, lint and typecheck need no Docker. `make up` needs Docker; on Windows without GNU Make use `.venv\Scripts\python -m pytest`, `ruff` and `mypy` directly.
 
 ## Layout
 `src/travelos/<module>/` (domain → services → adapters → api), `prompts/`, `web/`, `data/` (synthetic only), `config/business_rules.yaml` (owner-provided; example in `config/`), `docs/`, `tasks/`. See `docs/02_ARCHITECTURE.md`.
