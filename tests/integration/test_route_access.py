@@ -1,0 +1,164 @@
+"""Every API route is covered by an allowed + denied (or public) access test."""
+
+from __future__ import annotations
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from travelos.security.permissions import Role
+from travelos.security.totp import generate_code
+
+pytestmark = pytest.mark.integration
+
+ALL_ROLES = [role.value for role in Role]
+MFA_ROLES = {"owner", "admin"}
+
+# The single registry the completeness test enforces. Adding a route without
+# updating this map (and its access tests) fails the suite.
+EXPECTED_ROUTES = {
+    ("GET", "/health"),
+    ("GET", "/ready"),
+    ("POST", "/auth/login"),
+    ("POST", "/auth/logout"),
+    ("GET", "/auth/me"),
+    ("POST", "/auth/mfa/enroll"),
+    ("GET", "/admin/flags"),
+    ("PUT", "/admin/flags/{key}"),
+}
+
+
+def bearer(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def login_as(login, client: TestClient, make_user, role: str, email: str | None = None) -> str:
+    user = make_user(
+        email=email or f"{role}@example.test",
+        role=role,
+        mfa_enrolled=role in MFA_ROLES,
+    )
+    code = generate_code(user.mfa_secret) if user.mfa_secret else None
+    response = login(client, user, code=code)
+    assert response.status_code == 200, response.text
+    return response.json()["access_token"]
+
+
+def api_route_pairs(app: FastAPI) -> set[tuple[str, str]]:
+    """All documented operations, read from the generated OpenAPI schema.
+
+    FastAPI wraps included routers, so walking ``app.routes`` is version
+    dependent; the schema is the stable public surface.
+    """
+
+    schema = app.openapi()
+    return {
+        (method.upper(), path)
+        for path, operations in schema["paths"].items()
+        for method in operations
+    }
+
+
+def test_every_route_is_registered_in_the_access_plan(auth_app: FastAPI) -> None:
+    assert api_route_pairs(auth_app) == EXPECTED_ROUTES
+
+
+@pytest.mark.parametrize(("method", "path"), [("GET", "/health"), ("GET", "/ready")])
+def test_health_routes_are_public(auth_client: TestClient, method: str, path: str) -> None:
+    assert auth_client.request(method, path).status_code == 200
+
+
+@pytest.mark.parametrize("path", ["/auth/login", "/auth/mfa/enroll"])
+def test_login_and_enrollment_are_public_and_check_credentials(
+    auth_client: TestClient, path: str
+) -> None:
+    response = auth_client.post(
+        path, json={"email": "nobody@example.test", "password": "synthetic-password-42"}
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"error": "invalid_credentials"}
+
+
+@pytest.mark.parametrize("role", ALL_ROLES)
+def test_me_allows_every_role(auth_client: TestClient, make_user, login, role: str) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    response = auth_client.get("/auth/me", headers=bearer(token))
+
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+
+
+@pytest.mark.parametrize("role", ALL_ROLES)
+def test_logout_allows_every_role(auth_client: TestClient, make_user, login, role: str) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    response = auth_client.post("/auth/logout", headers=bearer(token))
+
+    assert response.status_code == 204
+
+
+@pytest.mark.parametrize("role", ["owner", "admin"])
+def test_flag_read_allows_owner_and_admin(
+    auth_client: TestClient, make_user, login, role: str
+) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    response = auth_client.get("/admin/flags", headers=bearer(token))
+
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize("role", ["agent", "accountant"])
+def test_flag_read_denies_agent_and_accountant(
+    auth_client: TestClient, make_user, login, audit_rows, role: str
+) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    response = auth_client.get("/admin/flags", headers=bearer(token))
+
+    assert response.status_code == 403
+    assert audit_rows("auth.permission_denied")
+
+
+@pytest.mark.parametrize("role", ["admin", "agent", "accountant"])
+def test_flag_write_denies_every_role_but_owner(
+    permissive_client: TestClient, make_user, login, audit_rows, role: str
+) -> None:
+    token = login_as(login, permissive_client, make_user, role)
+
+    response = permissive_client.put(
+        "/admin/flags/email", json={"enabled": True}, headers=bearer(token)
+    )
+
+    assert response.status_code == 403
+    assert audit_rows("auth.permission_denied")
+
+
+def test_flag_write_allows_owner(permissive_client: TestClient, make_user, login) -> None:
+    token = login_as(login, permissive_client, make_user, "owner")
+
+    response = permissive_client.put(
+        "/admin/flags/email", json={"enabled": True}, headers=bearer(token)
+    )
+
+    assert response.status_code == 200
+    assert response.json()["source"] == "database"
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("GET", "/auth/me"),
+        ("POST", "/auth/logout"),
+        ("GET", "/admin/flags"),
+        ("PUT", "/admin/flags/email"),
+    ],
+)
+def test_protected_routes_reject_anonymous_callers(
+    auth_client: TestClient, method: str, path: str
+) -> None:
+    response = auth_client.request(method, path, json={"enabled": True})
+
+    assert response.status_code == 401

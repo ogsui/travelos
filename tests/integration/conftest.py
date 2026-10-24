@@ -8,19 +8,29 @@ transaction.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import uuid
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, text
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from httpx import Response
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import URL, Engine, make_url
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from travelos.core.db import build_engine
+from travelos.api.app import create_app
+from travelos.core.config import KillSwitches, Settings
+from travelos.core.db import DEFAULT_TENANT_ID, build_engine, build_session_factory
+from travelos.core.models import AuditLog, User
+from travelos.security.passwords import hash_password
+from travelos.security.totp import generate_secret
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = REPO_ROOT / "alembic.ini"
@@ -169,3 +179,200 @@ def db(schema_engine: Engine) -> Iterator[Session]:
         session.close()
         transaction.rollback()
         connection.close()
+
+
+# --------------------------------------------------------------------------
+# Migrated database clones and API fixtures
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def migrated_template_name(postgres_base_url: str) -> Iterator[str]:
+    """One fully migrated database used as a template for cheap clones.
+
+    Cloning with ``CREATE DATABASE ... TEMPLATE`` takes milliseconds, so each
+    API test gets an empty, migrated database even though migrations are slow.
+    """
+
+    name = f"travelos_template_{uuid.uuid4().hex[:12]}"
+    admin = _admin_engine(postgres_base_url)
+    try:
+        with admin.connect() as connection:
+            connection.execute(text(f'CREATE DATABASE "{name}"'))
+    finally:
+        admin.dispose()
+
+    upgrade_database(_database_url(postgres_base_url, name))
+    try:
+        yield name
+    finally:
+        admin = _admin_engine(postgres_base_url)
+        try:
+            with admin.connect() as connection:
+                connection.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+        finally:
+            admin.dispose()
+
+
+@pytest.fixture
+def database_url(postgres_base_url: str, migrated_template_name: str) -> Iterator[str]:
+    """A throwaway migrated database for one API test."""
+
+    name = f"travelos_api_{uuid.uuid4().hex[:12]}"
+    admin = _admin_engine(postgres_base_url)
+    try:
+        with admin.connect() as connection:
+            connection.execute(
+                text(f'CREATE DATABASE "{name}" TEMPLATE "{migrated_template_name}"')
+            )
+    finally:
+        admin.dispose()
+
+    try:
+        yield _database_url(postgres_base_url, name)
+    finally:
+        admin = _admin_engine(postgres_base_url)
+        try:
+            with admin.connect() as connection:
+                connection.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+        finally:
+            admin.dispose()
+
+
+@pytest.fixture
+def db_factory(database_url: str) -> Iterator[sessionmaker[Session]]:
+    """Session factory for direct assertions against an API test database."""
+
+    engine = build_engine(database_url)
+    try:
+        yield build_session_factory(engine)
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture
+def auth_app(database_url: str, test_settings: Settings) -> FastAPI:
+    """App with every operator kill switch at its safe default (OFF)."""
+
+    return create_app(test_settings.model_copy(update={"database_url": database_url}))
+
+
+@pytest.fixture
+def auth_client(auth_app: FastAPI) -> Iterator[TestClient]:
+    with TestClient(auth_app) as client:
+        yield client
+
+
+@pytest.fixture
+def permissive_app(database_url: str, test_settings: Settings) -> FastAPI:
+    """App where the operator permits every capability, so DB flags decide.
+
+    Production deployments enable individual switches explicitly. These tests
+    need the operator layer open in order to exercise the owner-level flags.
+    """
+
+    switches = KillSwitches(**dict.fromkeys(KillSwitches.switch_names(), True))
+    settings = test_settings.model_copy(
+        update={"database_url": database_url, "kill_switches": switches}
+    )
+    return create_app(settings)
+
+
+@pytest.fixture
+def permissive_client(permissive_app: FastAPI) -> Iterator[TestClient]:
+    with TestClient(permissive_app) as client:
+        yield client
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class SyntheticUser:
+    """Credentials and identity of a user created by ``make_user``."""
+
+    id: UUID
+    email: str
+    role: str
+    password: str
+    mfa_secret: str | None = None
+
+
+@pytest.fixture
+def make_user(db_factory: sessionmaker[Session]) -> Callable[..., SyntheticUser]:
+    """Create a synthetic user; never real or realistic personal data."""
+
+    def factory(
+        email: str = "agent@example.test",
+        role: str = "agent",
+        password: str = "synthetic-password-42",
+        *,
+        mfa_enrolled: bool = False,
+        is_active: bool = True,
+        tenant_id: UUID = DEFAULT_TENANT_ID,
+    ) -> SyntheticUser:
+        secret = generate_secret() if mfa_enrolled else None
+        with db_factory() as db:
+            user = User(
+                tenant_id=tenant_id,
+                email=email,
+                password_hash=hash_password(password),
+                role=role,
+                is_active=is_active,
+                mfa_secret=secret,
+            )
+            db.add(user)
+            db.commit()
+            return SyntheticUser(
+                id=user.id,
+                email=user.email,
+                role=user.role,
+                password=password,
+                mfa_secret=secret,
+            )
+
+    return factory
+
+
+@pytest.fixture
+def login() -> Callable[..., Response]:
+    """POST /auth/login for a user, optionally with a TOTP code."""
+
+    def factory(
+        client: TestClient,
+        user: SyntheticUser,
+        *,
+        code: str | None = None,
+        password: str | None = None,
+    ) -> Response:
+        payload: dict[str, str] = {
+            "email": user.email,
+            "password": password if password is not None else user.password,
+        }
+        if code is not None:
+            payload["totp_code"] = code
+        return client.post("/auth/login", json=payload)
+
+    return factory
+
+
+@pytest.fixture
+def csrf_headers() -> Callable[[TestClient], dict[str, str]]:
+    """Headers that satisfy the double-submit CSRF check for cookie auth."""
+
+    def factory(client: TestClient) -> dict[str, str]:
+        token = client.cookies.get("travelos_csrf")
+        return {"X-CSRF-Token": token} if token else {}
+
+    return factory
+
+
+@pytest.fixture
+def audit_rows(db_factory: sessionmaker[Session]) -> Callable[..., list[AuditLog]]:
+    """Read audit rows after a request has committed them."""
+
+    def factory(action: str | None = None) -> list[AuditLog]:
+        with db_factory() as db:
+            statement = select(AuditLog).order_by(AuditLog.at)
+            if action is not None:
+                statement = statement.where(AuditLog.action == action)
+            return list(db.execute(statement).scalars())
+
+    return factory

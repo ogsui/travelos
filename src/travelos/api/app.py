@@ -5,16 +5,23 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import timedelta
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from travelos import __version__
 from travelos.api.health import router as health_router
 from travelos.api.middleware import RequestContextMiddleware
+from travelos.api.routes.admin import router as admin_router
+from travelos.api.routes.auth import router as auth_router
+from travelos.core.audit import AuditWriter
 from travelos.core.config import Mode, Settings, get_settings
+from travelos.core.db import build_engine, build_session_factory
+from travelos.core.features import DatabaseFlagSource, FeatureFlagService
 from travelos.core.logging import configure_logging, get_request_id
+from travelos.security.sessions import AuthSessionService
 
 logger = logging.getLogger("travelos.api")
 
@@ -24,6 +31,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     resolved = settings or get_settings()
     configure_logging(resolved.log_level, json_output=resolved.log_json)
+
+    engine = build_engine(resolved.effective_database_url)
+    session_factory = build_session_factory(engine)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -36,8 +46,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "kill_switches": list(resolved.kill_switches.enabled()),
             },
         )
-        yield
-        logger.info("service stopped")
+        try:
+            yield
+        finally:
+            engine.dispose()
+            logger.info("service stopped")
 
     app = FastAPI(
         title=resolved.app_name,
@@ -48,6 +61,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = resolved
+    app.state.engine = engine
+    app.state.session_factory = session_factory
+    app.state.audit = AuditWriter()
+    app.state.auth_sessions = AuthSessionService(
+        session_factory, ttl=timedelta(minutes=resolved.session_ttl_minutes)
+    )
+    app.state.feature_flags = FeatureFlagService(DatabaseFlagSource(session_factory), resolved)
     app.add_middleware(RequestContextMiddleware)
 
     if resolved.cors_origins:
@@ -56,10 +76,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_origins=resolved.cors_origins,
             allow_credentials=True,
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-            allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+            allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-CSRF-Token"],
         )
 
     app.include_router(health_router)
+    app.include_router(auth_router)
+    app.include_router(admin_router)
+
+    @app.exception_handler(HTTPException)
+    async def http_exception(_request: Request, exc: HTTPException) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"error": exc.detail},
+            headers=exc.headers,
+        )
 
     @app.exception_handler(Exception)
     async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:

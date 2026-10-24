@@ -29,6 +29,7 @@ BUSINESS_TABLES = {
     "human_tasks",
     "idempotency_keys",
     "outbox_events",
+    "sessions",
     "suppression_list",
     "travellers",
     "users",
@@ -205,6 +206,7 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
         "consents": {"ix_consents_contact_purpose"},
         "idempotency_keys": {"ix_idempotency_keys_expires_at"},
         "outbox_events": {"ix_outbox_events_status_available"},
+        "sessions": {"ix_sessions_user_id", "ix_sessions_expires_at"},
         "suppression_list": {"ix_suppression_list_value_hash"},
         "human_tasks": {"ix_human_tasks_status_due", "ix_human_tasks_assignee"},
     }

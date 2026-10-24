@@ -79,6 +79,12 @@ class KillSwitches(BaseModel):
 
         return tuple(name for name, value in self.model_dump().items() if value)
 
+    @classmethod
+    def switch_names(cls) -> tuple[str, ...]:
+        """Every known kill switch. Used to validate admin flag endpoints."""
+
+        return tuple(cls.model_fields)
+
 
 class Settings(BaseSettings):
     """Settings loaded from environment variables and ``.env``.
@@ -115,6 +121,10 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = Field(default_factory=list)
     kill_switches: KillSwitches = Field(default_factory=KillSwitches)
+
+    # Auth. Sessions are opaque server-side tokens, not JWTs (see DECISIONS.md).
+    session_ttl_minutes: int = Field(default=720, ge=5, le=43_200)
+    mfa_issuer: str = "TravelOS"
 
     @model_validator(mode="after")
     def _enforce_live_safety(self) -> Settings:
@@ -171,6 +181,12 @@ class Settings(BaseSettings):
     @property
     def is_live(self) -> bool:
         return self.mode is Mode.LIVE
+
+    @property
+    def secure_cookies(self) -> bool:
+        """Cookies require TLS in live mode or whenever the public URL is https."""
+
+        return self.is_live or (self.public_base_url or "").startswith("https://")
 
 
 @lru_cache(maxsize=1)

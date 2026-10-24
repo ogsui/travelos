@@ -5,6 +5,8 @@
 
 Database integration tests start a bundled PostgreSQL 16 through the dev-only `pgserver` dependency, so no Docker or local server is needed. They run real Alembic migrations (upgrade, seeded downgrade, re-upgrade), CHECK constraints, partial indexes, the append-only trigger and encryption at rest; `make test-integration` selects them with `-m integration`.
 
+Auth tests (task 003) clone a migrated template database per test. They cover Argon2 hashing, RFC 6238 TOTP vectors, the role/permission matrix, session expiry/revocation, audit redaction and diffs, flag cache TTL/invalidation, and the HTTP surface: every route has an allowed and a denied role test (or an explicit public test), plus a registry test that fails when a new route is added without a matching access test. Login, MFA, permission denials and flag writes are asserted against real `audit_log` rows.
+
 ## Synthetic dataset (task 007) — everything obviously fake
 | Set | Size / content |
 |---|---|

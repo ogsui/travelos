@@ -55,6 +55,7 @@ Levels live in `autonomy_policies` and are enforced by the ActionPolicy layer. D
 | Apply an analytics recommendation | A1 | — | |
 | Data export/deletion for a customer | A1 | — | **LOCKED** deletion needs owner |
 | Change autonomy levels / business rules | A0 (owner) | — | **LOCKED** |
+| Change a kill switch / feature flag | A0 (owner) | — | **LOCKED**; owner-only endpoint, audited before/after |
 
 ## Graduation rules
 - Per action type, the tracker records proposals, approved-unchanged, edited, rejected, incidents (wrong outcome reached a customer or cost money).
