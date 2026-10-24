@@ -86,3 +86,11 @@ Materialized views/marts: funnel_by_day, revenue_margin_by_product, lead_source_
 
 ## Indexes & constraints to get right early
 Unique: `messages(channel, external_id)`, `payments(gateway_ref)`, `invoices(series, number)`, `idempotency_keys(key, scope)`. FK everywhere. Partial indexes on `state` for hot queues (pending approvals, open quotes). CHECK: amounts >= 0, `consents.withdrawn_at >= granted_at`, `testimonials.consent_ref NOT NULL`.
+
+## Implementation notes (task 002)
+- Every table inherits `BaseTable` (`core/db.py`): UUIDv7 `id` PK, `tenant_id` (default tenant, indexed), `created_at`/`updated_at` (`timestamptz`, DB-side `now()`). UUIDv7 is generated in Python (`core/ids.py`), not by the database.
+- Money columns follow the `<name>_paise BIGINT` + `<name>_currency CHAR(3)` pattern. `Money` (`core/money.py`) is the only money type in code; tests scan both the SQLAlchemy metadata and `information_schema` and fail on any float/numeric column.
+- Encrypted columns (`contacts.value`, `users.mfa_secret`, `travellers.full_name_as_passport`, `dob`, `passport_no`, `passport_expiry`) use `EncryptedString`/`EncryptedDate`, which store `enc:v1:<fernet-token>`. The key is a 32-byte URL-safe base64 value in `ENCRYPTION_KEY`, read through the `KeyProvider` interface (`security/encryption.py`). Ciphertext is masked in logs before any other redaction rule.
+- `audit_log` is append-only twice: SQLAlchemy listeners raise `AppendOnlyError` in-process, and a PostgreSQL trigger (`travelos_block_append_only`) blocks UPDATE, DELETE and TRUNCATE for every client. Migration `0001` installs it; `downgrade()` removes both trigger and function.
+- Schema tests run against a real PostgreSQL 16 started by the `pgserver` dev dependency (no Docker, no external database). Migration tests get a throwaway database each and exercise upgrade, seeded downgrade and re-upgrade.
+

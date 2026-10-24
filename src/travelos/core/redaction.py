@@ -16,6 +16,9 @@ from pydantic import SecretStr
 REDACTED = "[REDACTED]"
 
 _PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    # TravelOS field-level ciphertext first: it is opaque, so mask it before
+    # any other pattern can nibble at the base64 body.
+    (re.compile(r"enc:v1:[A-Za-z0-9_=.-]+"), "[REDACTED_CIPHERTEXT]"),
     # JWT / bearer-ish tokens
     (
         re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b"),

@@ -111,6 +111,7 @@ class Settings(BaseSettings):
     redis_url: str | None = None
     secret_key: SecretStr | None = None
     public_base_url: str | None = None
+    encryption_key: SecretStr | None = None
 
     cors_origins: list[str] = Field(default_factory=list)
     kill_switches: KillSwitches = Field(default_factory=KillSwitches)
@@ -132,6 +133,8 @@ class Settings(BaseSettings):
             missing.append("REDIS_URL")
         if not self.public_base_url:
             missing.append("PUBLIC_BASE_URL")
+        if not self.encryption_key:
+            missing.append("ENCRYPTION_KEY")
 
         secret = self.secret_key.get_secret_value() if self.secret_key else ""
         if not secret:

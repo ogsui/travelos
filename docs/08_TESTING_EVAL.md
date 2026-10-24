@@ -3,6 +3,8 @@
 ## Test pyramid
 `tests/unit` (pure logic, property tests) · `tests/integration` (DB, Redis, adapters vs mocks) · `tests/contract` (every adapter interface; runs against mock and, when available, sandbox) · `tests/eval` (LLM quality + adversarial) · `tests/e2e` (inquiry -> invoice on synthetic data, Playwright for the dashboard).
 
+Database integration tests start a bundled PostgreSQL 16 through the dev-only `pgserver` dependency, so no Docker or local server is needed. They run real Alembic migrations (upgrade, seeded downgrade, re-upgrade), CHECK constraints, partial indexes, the append-only trigger and encryption at rest; `make test-integration` selects them with `-m integration`.
+
 ## Synthetic dataset (task 007) — everything obviously fake
 | Set | Size / content |
 |---|---|

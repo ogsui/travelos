@@ -111,6 +111,7 @@ def test_live_hides_docs() -> None:
         redis_url="redis://redis:6379/0",
         secret_key="b" * 40,
         public_base_url="https://travelos.example.com",
+        encryption_key="MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
     )
 
     app: FastAPI = create_app(settings)

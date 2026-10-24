@@ -17,6 +17,7 @@ def test_seed_refuses_live_mode(monkeypatch: pytest.MonkeyPatch) -> None:
         redis_url="redis://redis:6379/0",
         secret_key="c" * 40,
         public_base_url="https://travelos.example.com",
+        encryption_key="MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
     )
     monkeypatch.setattr(seed, "get_settings", lambda: live)
 

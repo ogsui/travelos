@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+
 import pytest
 from pydantic import SecretStr, ValidationError
 
@@ -15,6 +17,7 @@ from travelos.core.config import (
 
 LIVE_SECRET = "a" * 40
 LIVE_BASE_URL = "https://travelos.example.com"
+LIVE_ENCRYPTION_KEY = base64.urlsafe_b64encode(b"k" * 32).decode("ascii")
 
 
 def live_settings(**overrides: object) -> Settings:
@@ -25,6 +28,7 @@ def live_settings(**overrides: object) -> Settings:
         "redis_url": "redis://redis:6379/0",
         "secret_key": SecretStr(LIVE_SECRET),
         "public_base_url": LIVE_BASE_URL,
+        "encryption_key": SecretStr(LIVE_ENCRYPTION_KEY),
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)  # type: ignore[arg-type]
@@ -84,6 +88,18 @@ def test_live_refuses_without_required_settings() -> None:
     assert "REDIS_URL" in message
     assert "SECRET_KEY" in message
     assert "PUBLIC_BASE_URL" in message
+    assert "ENCRYPTION_KEY" in message
+
+
+def test_live_refuses_without_encryption_key() -> None:
+    with pytest.raises(ValidationError, match="ENCRYPTION_KEY"):
+        live_settings(encryption_key=None)
+
+
+def test_live_key_is_not_revealed_by_repr() -> None:
+    settings = live_settings()
+
+    assert LIVE_ENCRYPTION_KEY not in repr(settings)
 
 
 def test_live_refuses_short_secret() -> None:

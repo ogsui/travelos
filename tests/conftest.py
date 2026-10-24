@@ -13,7 +13,21 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from travelos.api.app import create_app
-from travelos.core.config import KillSwitches, Mode, Settings
+from travelos.core.config import KillSwitches, Mode, Settings, reset_settings_cache
+from travelos.security.encryption import StaticKeyProvider, set_key_provider
+
+TEST_ENCRYPTION_KEY = b"0123456789abcdef0123456789abcdef"
+
+
+@pytest.fixture(autouse=True)
+def _static_encryption_key() -> Iterator[None]:
+    """Every test gets a known key; production reads ENCRYPTION_KEY instead."""
+
+    reset_settings_cache()
+    set_key_provider(StaticKeyProvider(TEST_ENCRYPTION_KEY))
+    yield
+    set_key_provider(None)
+    reset_settings_cache()
 
 
 @pytest.fixture
