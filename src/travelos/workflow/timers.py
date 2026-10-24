@@ -40,6 +40,8 @@ class TimerKind(StrEnum):
     QUOTE_EXPIRY = "quote.expiry"
     PAYMENT_REMINDER = "payment.reminder"
     BOOKING_HOLD_EXPIRY = "booking.hold_expiry"
+    APPROVAL_ESCALATION = "approval.escalation"
+    APPROVAL_EXPIRY = "approval.expiry"
 
 
 DEFAULT_TIMER_DELAYS: Mapping[TimerKind, timedelta] = {
@@ -48,6 +50,8 @@ DEFAULT_TIMER_DELAYS: Mapping[TimerKind, timedelta] = {
     TimerKind.QUOTE_EXPIRY: timedelta(days=7),
     TimerKind.PAYMENT_REMINDER: timedelta(hours=24),
     TimerKind.BOOKING_HOLD_EXPIRY: timedelta(minutes=30),
+    TimerKind.APPROVAL_ESCALATION: timedelta(minutes=30),
+    TimerKind.APPROVAL_EXPIRY: timedelta(hours=24),
 }
 
 

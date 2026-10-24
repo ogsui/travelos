@@ -68,3 +68,12 @@ Levels live in `autonomy_policies` and are enforced by the ActionPolicy layer. D
 - Expiry and escalation: unanswered requests escalate (agent -> owner) after configurable timers; customers get a holding message from approved templates.
 - Four-eyes (second approver) above the configured value threshold and for LOCKED financial actions.
 - Every decision is audited with before/after.
+
+## Implementation notes (task 005)
+- The enforceable catalogue is `src/travelos/approval/matrix.py`. It encodes every row above, including `default_level`, `max_level`, `locked`, `owner_only`, four-eyes and notes. `docs/05_APPROVAL_MATRIX.md` remains the human source of truth; a change here must be mirrored there (and the catalogue test counts the LOCKED set).
+- Resolution: A0 -> `deny`; A1 -> `needs_approval`; A2/A3 -> `auto` (A2 carries `review_after`). Stored levels are clamped to `max_level`; LOCKED actions always resolve to their fixed default. Unknown action types fail closed.
+- Four-eyes is active when the catalogue flags it, the owner sets `requires_four_eyes`, or the instance value reaches the owner's `value_threshold_paise` (threshold `0` disables the value trigger). A four-eyes requirement downgrades an otherwise automatic decision to `needs_approval`, because two humans cannot be replaced by a machine.
+- Owner-only changes go through `PUT /autonomy/policies/{action_type}` (`autonomy:write`, owner role only) and `AutonomyService.update_policy`. LOCKED actions and levels above the ceiling are rejected with `policy_locked` before any row is written, and every change is audited with before/after.
+- Demotion is implemented as a daily worker hook. Promotion remains a human decision: the tracker records the data, the owner approves a promotion through the same endpoint, and there is no automatic raise. The matrix's graduation criteria are not wired into code yet (task 037/graduation work).
+- Approval requests carry a proposed-versus-final diff in the audit log (`approval.decided`); the table keeps both payloads. Escalation and expiry create owner `human_tasks` and emit events, so no unanswered request disappears.
+- `docs/03_DATABASE.md` records the table columns; `docs/08_TESTING_EVAL.md` lists the tests that enforce these rules.

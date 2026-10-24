@@ -25,6 +25,12 @@ EXPECTED_ROUTES = {
     ("POST", "/auth/mfa/enroll"),
     ("GET", "/admin/flags"),
     ("PUT", "/admin/flags/{key}"),
+    ("POST", "/approvals"),
+    ("GET", "/approvals"),
+    ("GET", "/approvals/{request_id}"),
+    ("POST", "/approvals/{request_id}/decision"),
+    ("GET", "/autonomy/policies"),
+    ("PUT", "/autonomy/policies/{action_type}"),
 }
 
 
@@ -154,6 +160,12 @@ def test_flag_write_allows_owner(permissive_client: TestClient, make_user, login
         ("POST", "/auth/logout"),
         ("GET", "/admin/flags"),
         ("PUT", "/admin/flags/email"),
+        ("GET", "/approvals"),
+        ("POST", "/approvals"),
+        ("GET", "/approvals/00000000-0000-0000-0000-0000000000aa"),
+        ("POST", "/approvals/00000000-0000-0000-0000-0000000000aa/decision"),
+        ("GET", "/autonomy/policies"),
+        ("PUT", "/autonomy/policies/quote.send"),
     ],
 )
 def test_protected_routes_reject_anonymous_callers(
@@ -162,3 +174,124 @@ def test_protected_routes_reject_anonymous_callers(
     response = auth_client.request(method, path, json={"enabled": True})
 
     assert response.status_code == 401
+
+
+# --------------------------------------------------------------------------
+# Approvals and autonomy
+# --------------------------------------------------------------------------
+
+APPROVAL_PAYLOAD = {
+    "action_type": "quote.send",
+    "subject_type": "quote",
+    "proposed": {"total_paise": 1},
+}
+
+
+def submit_ticket(client: TestClient, token: str) -> str:
+    response = client.post("/approvals", json=APPROVAL_PAYLOAD, headers=bearer(token))
+    assert response.status_code == 200, response.text
+    return str(response.json()["approval"]["id"])
+
+
+@pytest.mark.parametrize("role", ALL_ROLES)
+def test_approval_read_allows_every_role(
+    auth_client: TestClient, make_user, login, role: str
+) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    assert auth_client.get("/approvals", headers=bearer(token)).status_code == 200
+
+
+@pytest.mark.parametrize("role", ["owner", "agent", "accountant"])
+def test_approval_request_allows_operators(
+    auth_client: TestClient, make_user, login, role: str
+) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    response = auth_client.post("/approvals", json=APPROVAL_PAYLOAD, headers=bearer(token))
+
+    assert response.status_code == 200, response.text
+    assert response.json()["decision"]["decision"] == "needs_approval"
+
+
+def test_approval_request_denies_admin(
+    auth_client: TestClient, make_user, login, audit_rows
+) -> None:
+    token = login_as(login, auth_client, make_user, "admin")
+
+    response = auth_client.post("/approvals", json=APPROVAL_PAYLOAD, headers=bearer(token))
+
+    assert response.status_code == 403
+    assert audit_rows("auth.permission_denied")
+
+
+@pytest.mark.parametrize("role", ["owner", "agent", "accountant"])
+def test_approval_decision_allows_operators(
+    auth_client: TestClient, make_user, login, role: str
+) -> None:
+    requester_token = login_as(login, auth_client, make_user, "agent", "requester@example.test")
+    request_id = submit_ticket(auth_client, requester_token)
+    token = login_as(login, auth_client, make_user, role, f"{role}@example.test")
+
+    response = auth_client.post(
+        f"/approvals/{request_id}/decision",
+        json={"decision": "approve"},
+        headers=bearer(token),
+    )
+
+    assert response.status_code == 200, response.text
+
+
+def test_approval_decision_denies_admin(
+    auth_client: TestClient, make_user, login, audit_rows
+) -> None:
+    requester_token = login_as(login, auth_client, make_user, "agent", "requester@example.test")
+    request_id = submit_ticket(auth_client, requester_token)
+    token = login_as(login, auth_client, make_user, "admin", "admin@example.test")
+
+    response = auth_client.post(
+        f"/approvals/{request_id}/decision",
+        json={"decision": "approve"},
+        headers=bearer(token),
+    )
+
+    assert response.status_code == 403
+    assert audit_rows("auth.permission_denied")
+
+
+@pytest.mark.parametrize("role", ALL_ROLES)
+def test_autonomy_read_allows_every_role(
+    auth_client: TestClient, make_user, login, role: str
+) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    assert auth_client.get("/autonomy/policies", headers=bearer(token)).status_code == 200
+
+
+@pytest.mark.parametrize("role", ["admin", "agent", "accountant"])
+def test_autonomy_write_denies_every_role_but_owner(
+    auth_client: TestClient, make_user, login, audit_rows, role: str
+) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    response = auth_client.put(
+        "/autonomy/policies/quote.send",
+        json={"level": "A2"},
+        headers=bearer(token),
+    )
+
+    assert response.status_code == 403
+    assert audit_rows("auth.permission_denied")
+
+
+def test_autonomy_write_allows_owner(auth_client: TestClient, make_user, login) -> None:
+    token = login_as(login, auth_client, make_user, "owner")
+
+    response = auth_client.put(
+        "/autonomy/policies/quote.send",
+        json={"level": "A2"},
+        headers=bearer(token),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["level"] == "A2"

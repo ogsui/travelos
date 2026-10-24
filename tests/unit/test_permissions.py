@@ -32,6 +32,31 @@ def test_flags_write_is_owner_only() -> None:
     assert [role for role in Role if has_permission(role, Permission.FLAGS_WRITE)] == [Role.OWNER]
 
 
+def test_autonomy_write_is_owner_only() -> None:
+    assert [role for role in Role if has_permission(role, Permission.AUTONOMY_WRITE)] == [
+        Role.OWNER
+    ]
+
+
+def test_every_role_can_read_approvals_and_autonomy() -> None:
+    for role in Role:
+        assert has_permission(role, Permission.APPROVALS_READ), role
+        assert has_permission(role, Permission.AUTONOMY_READ), role
+
+
+def test_agents_and_accountants_request_and_decide_approvals() -> None:
+    for role in (Role.AGENT, Role.ACCOUNTANT):
+        assert has_permission(role, Permission.APPROVALS_REQUEST), role
+        assert has_permission(role, Permission.APPROVALS_DECIDE), role
+
+
+def test_admin_can_read_but_not_request_or_decide_approvals() -> None:
+    assert has_permission(Role.ADMIN, Permission.APPROVALS_READ) is True
+    assert has_permission(Role.ADMIN, Permission.APPROVALS_REQUEST) is False
+    assert has_permission(Role.ADMIN, Permission.APPROVALS_DECIDE) is False
+    assert has_permission(Role.ADMIN, Permission.AUTONOMY_WRITE) is False
+
+
 def test_admin_can_read_flags_but_not_change_them() -> None:
     assert has_permission(Role.ADMIN, Permission.FLAGS_READ) is True
     assert has_permission(Role.ADMIN, Permission.FLAGS_WRITE) is False
@@ -42,24 +67,32 @@ def test_admin_can_manage_users_and_read_audit() -> None:
     assert has_permission(Role.ADMIN, Permission.AUDIT_READ) is True
 
 
-def test_agent_is_limited_to_crm_and_quotes() -> None:
+def test_agent_is_limited_to_crm_quotes_and_approvals() -> None:
     assert permissions_for(Role.AGENT) == frozenset(
         {
             Permission.CRM_READ,
             Permission.CRM_WRITE,
             Permission.QUOTES_READ,
             Permission.QUOTES_WRITE,
+            Permission.APPROVALS_READ,
+            Permission.APPROVALS_REQUEST,
+            Permission.APPROVALS_DECIDE,
+            Permission.AUTONOMY_READ,
         }
     )
 
 
-def test_accountant_is_limited_to_billing_quotes_and_reports() -> None:
+def test_accountant_is_limited_to_billing_quotes_reports_and_approvals() -> None:
     assert permissions_for(Role.ACCOUNTANT) == frozenset(
         {
             Permission.BILLING_READ,
             Permission.BILLING_WRITE,
             Permission.QUOTES_READ,
             Permission.REPORTS_READ,
+            Permission.APPROVALS_READ,
+            Permission.APPROVALS_REQUEST,
+            Permission.APPROVALS_DECIDE,
+            Permission.AUTONOMY_READ,
         }
     )
 

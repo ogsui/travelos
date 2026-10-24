@@ -139,6 +139,18 @@ class Settings(BaseSettings):
     timer_batch_size: int = Field(default=100, ge=1, le=1000)
     timer_poll_seconds: float = Field(default=10.0, gt=0, le=3600)
 
+    # Approvals (task 005). These are safety defaults, not business policy:
+    # an unanswered request escalates to the owner and then expires. The owner
+    # can tune the timings through the environment.
+    approval_ttl_minutes: int = Field(default=1440, ge=5, le=525_600)
+    approval_escalation_minutes: int = Field(default=30, ge=1, le=525_600)
+
+    @model_validator(mode="after")
+    def _escalation_before_expiry(self) -> Settings:
+        if self.approval_escalation_minutes >= self.approval_ttl_minutes:
+            raise ValueError("APPROVAL_ESCALATION_MINUTES must be less than APPROVAL_TTL_MINUTES")
+        return self
+
     @model_validator(mode="after")
     def _enforce_live_safety(self) -> Settings:
         if self.mode is not Mode.LIVE:

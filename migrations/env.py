@@ -8,6 +8,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+import travelos.approval.models
 import travelos.core.models
 import travelos.crm.models
 import travelos.workflow.models  # noqa: F401  (registers workflow tables)

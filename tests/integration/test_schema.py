@@ -20,6 +20,7 @@ from travelos.workflow.models import WorkflowTimer
 pytestmark = pytest.mark.integration
 
 BUSINESS_TABLES = {
+    "approval_requests",
     "audit_log",
     "autonomy_metrics",
     "autonomy_policies",
@@ -200,6 +201,12 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
     inspector = inspect(schema_engine)
 
     expected_indexes = {
+        "approval_requests": {
+            "ix_approval_requests_status",
+            "ix_approval_requests_action",
+            "ix_approval_requests_subject",
+            "ix_approval_requests_expires",
+        },
         "audit_log": {"ix_audit_log_action_at", "ix_audit_log_actor", "ix_audit_log_subject"},
         "contacts": {
             "ix_contacts_customer_channel",

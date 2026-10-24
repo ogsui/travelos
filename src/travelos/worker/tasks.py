@@ -95,3 +95,25 @@ def purge_expired_sessions() -> int:
     )
     with session_scope(get_session_factory()) as db:
         return service.purge_expired(db)
+
+
+@celery_app.task(name="travelos.autonomy.demote")  # type: ignore[untyped-decorator]
+def demote_autonomy() -> int:
+    """Daily: demote actions whose metrics breach the owner-agreed rules."""
+
+    from travelos.approval.service import AutonomyService
+
+    with session_scope(get_session_factory()) as db:
+        demotions = AutonomyService().demote(db)
+    if demotions:
+        logger.warning("autonomy demoted for %s action(s)", len(demotions))
+    return len(demotions)
+
+
+# One handler for all timer events. Approval timers are handled; a timer owned
+# by another module raises and is dead-lettered until that module registers its
+# own route, so no signal is silently dropped.
+from travelos.approval.handlers import handle_timer_fired  # noqa: E402
+from travelos.workflow.timers import TIMER_FIRED_EVENT  # noqa: E402
+
+register_handler(TIMER_FIRED_EVENT, handle_timer_fired)

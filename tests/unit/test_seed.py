@@ -1,10 +1,12 @@
-"""Seeding must never run against production data."""
+"""Seeding refuses live mode and reports policy work without needing a database."""
 
 from __future__ import annotations
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 from travelos.admin import seed
+from travelos.approval.service import SeedReport
 from travelos.core.config import Mode, Settings
 
 
@@ -24,8 +26,25 @@ def test_seed_refuses_live_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     assert seed.main() == 1
 
 
-def test_seed_is_a_noop_until_generators_exist(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_seed_reports_the_policy_report(monkeypatch: pytest.MonkeyPatch) -> None:
     test = Settings(_env_file=None, mode=Mode.TEST, log_json=True)
     monkeypatch.setattr(seed, "get_settings", lambda: test)
+    monkeypatch.setattr(
+        seed,
+        "seed_autonomy_policies",
+        lambda _settings: SeedReport(inserted=45, repaired=2),
+    )
+
+    assert seed.main() == 0
+
+
+def test_seed_survives_an_unavailable_database(monkeypatch: pytest.MonkeyPatch) -> None:
+    test = Settings(_env_file=None, mode=Mode.TEST, log_json=True)
+    monkeypatch.setattr(seed, "get_settings", lambda: test)
+
+    def unavailable(_settings: Settings) -> SeedReport:
+        raise SQLAlchemyError("synthetic connection failure")
+
+    monkeypatch.setattr(seed, "seed_autonomy_policies", unavailable)
 
     assert seed.main() == 0

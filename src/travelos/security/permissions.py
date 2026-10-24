@@ -33,6 +33,11 @@ class Permission(StrEnum):
     BILLING_READ = "billing:read"
     BILLING_WRITE = "billing:write"
     REPORTS_READ = "reports:read"
+    APPROVALS_READ = "approvals:read"
+    APPROVALS_REQUEST = "approvals:request"
+    APPROVALS_DECIDE = "approvals:decide"
+    AUTONOMY_READ = "autonomy:read"
+    AUTONOMY_WRITE = "autonomy:write"
 
 
 MFA_REQUIRED_ROLES = frozenset({Role.OWNER, Role.ADMIN})
@@ -47,6 +52,8 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.AUDIT_READ,
             Permission.FLAGS_READ,
             Permission.CRM_READ,
+            Permission.APPROVALS_READ,
+            Permission.AUTONOMY_READ,
         }
     ),
     Role.AGENT: frozenset(
@@ -55,6 +62,10 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.CRM_WRITE,
             Permission.QUOTES_READ,
             Permission.QUOTES_WRITE,
+            Permission.APPROVALS_READ,
+            Permission.APPROVALS_REQUEST,
+            Permission.APPROVALS_DECIDE,
+            Permission.AUTONOMY_READ,
         }
     ),
     Role.ACCOUNTANT: frozenset(
@@ -63,6 +74,10 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.BILLING_WRITE,
             Permission.QUOTES_READ,
             Permission.REPORTS_READ,
+            Permission.APPROVALS_READ,
+            Permission.APPROVALS_REQUEST,
+            Permission.APPROVALS_DECIDE,
+            Permission.AUTONOMY_READ,
         }
     ),
 }

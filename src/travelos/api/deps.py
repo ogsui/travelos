@@ -15,6 +15,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from travelos.approval.service import ApprovalService
 from travelos.core.audit import Actor, AuditWriter
 from travelos.core.config import Settings
 from travelos.core.features import FeatureFlagService
@@ -66,6 +67,11 @@ def get_audit_writer(request: Request) -> AuditWriter:
 
 def get_feature_flags(request: Request) -> FeatureFlagService:
     service: FeatureFlagService = request.app.state.feature_flags
+    return service
+
+
+def get_approval_service(request: Request) -> ApprovalService:
+    service: ApprovalService = request.app.state.approvals
     return service
 
 

@@ -15,7 +15,10 @@ from travelos import __version__
 from travelos.api.health import router as health_router
 from travelos.api.middleware import RequestContextMiddleware
 from travelos.api.routes.admin import router as admin_router
+from travelos.api.routes.approvals import autonomy_router
+from travelos.api.routes.approvals import router as approvals_router
 from travelos.api.routes.auth import router as auth_router
+from travelos.approval.service import ApprovalService
 from travelos.core.audit import AuditWriter
 from travelos.core.config import Mode, Settings, get_settings
 from travelos.core.db import build_engine, build_session_factory
@@ -68,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session_factory, ttl=timedelta(minutes=resolved.session_ttl_minutes)
     )
     app.state.feature_flags = FeatureFlagService(DatabaseFlagSource(session_factory), resolved)
+    app.state.approvals = ApprovalService.from_settings(resolved)
     app.add_middleware(RequestContextMiddleware)
 
     if resolved.cors_origins:
@@ -82,6 +86,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(admin_router)
+    app.include_router(approvals_router)
+    app.include_router(autonomy_router)
 
     @app.exception_handler(HTTPException)
     async def http_exception(_request: Request, exc: HTTPException) -> JSONResponse:
