@@ -132,16 +132,19 @@ class ConsentService:
         contact = self._contact(db, contact_id=contact_id, tenant_id=tenant_id)
         if channel not in _CHANNELS or purpose not in _PURPOSES or channel != contact.channel:
             return False
-        if contact.value_hash is not None:
-            suppressed = db.execute(
-                select(SuppressionEntry.id).where(
-                    SuppressionEntry.tenant_id == tenant_id,
-                    SuppressionEntry.channel == channel,
-                    SuppressionEntry.value_hash == contact.value_hash,
-                )
-            ).scalar_one_or_none()
-            if suppressed is not None:
-                return False
+        # Until the keyed fingerprint exists, suppression cannot be checked
+        # reliably. Fail closed; task 008c supplies the canonical digest.
+        if contact.value_hash is None:
+            return False
+        suppressed = db.execute(
+            select(SuppressionEntry.id).where(
+                SuppressionEntry.tenant_id == tenant_id,
+                SuppressionEntry.channel == channel,
+                SuppressionEntry.value_hash == contact.value_hash,
+            )
+        ).scalar_one_or_none()
+        if suppressed is not None:
+            return False
 
         latest = db.execute(
             select(Consent)

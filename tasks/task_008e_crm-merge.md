@@ -1,6 +1,6 @@
-# Task 008d — Approval-gated reversible CRM merge
+# Task 008e — Approval-gated reversible CRM merge
 
-Phase 2 · Part of Task 008 · Depends on: 008b
+Phase 2 · Part of Task 008 · Depends on: 008b, 008d
 
 ## Read first
 - AGENTS.md
@@ -21,4 +21,4 @@ Phase 2 · Part of Task 008 · Depends on: 008b
 - Tenant boundaries and duplicate/overlapping contact cases are tested.
 
 ## Finish
-Tests first, `make check` (or direct equivalents on Windows), docs updated, commit `task-008d: ...`, report, then STOP.
+Tests first, `make check` (or direct equivalents on Windows), docs updated, commit `task-008e: ...`, report, then STOP.

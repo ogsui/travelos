@@ -14,9 +14,10 @@ Run in order. `/task NNN` in OpenCode. Review, commit, then start a fresh sessio
 | 008 | CRM core (umbrella; see sub-tasks) | 2 | 002, 003, 007 |
 | 008a | Consent service and API | 2 | 008 |
 | 008b | CRM customer/contact/traveller records and API | 2 | 008a |
-| 008c | CSV/Excel importer | 2 | 008b |
-| 008d | Approval-gated reversible customer merge | 2 | 008b |
-| 009 | Channel adapters and unified CRM timeline | 2 | 004, 008d |
+| 008c | Keyed contact fingerprints and seed-hash migration | 2 | 008b |
+| 008d | CSV/Excel importer | 2 | 008c |
+| 008e | Approval-gated reversible customer merge | 2 | 008b, 008d |
+| 009 | Channel adapters and unified CRM timeline | 2 | 004, 008e |
 | 010 | Inquiry parser & missing-info loop | 2 | 006, 007, 008, 009 |
 | 011 | Sales conversation agent | 2 | 005, 006, 010 |
 | 012 | Supplier adapters & price snapshots | 2 | 004, 007 |

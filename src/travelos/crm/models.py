@@ -36,7 +36,7 @@ class Customer(BaseTable):
     __tablename__ = "customers"
 
     customer_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    display_name: Mapped[str] = mapped_column(EncryptedString(), nullable=False)
     segment: Mapped[str | None] = mapped_column(String(40))
     owner_user_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
@@ -52,7 +52,6 @@ class Customer(BaseTable):
     __table_args__ = (
         CheckConstraint(f"customer_type IN ({_CUSTOMER_TYPES})", name="customer_type"),
         CheckConstraint("lifetime_value_paise >= 0", name="lifetime_value_non_negative"),
-        Index("ix_customers_display_name", "display_name"),
         Index("ix_customers_segment", "segment"),
     )
 

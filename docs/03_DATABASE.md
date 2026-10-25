@@ -20,7 +20,7 @@
 - `business_rule_versions` (yaml_hash, content, activated_by, activated_at)
 
 ## CRM & consent
-- `customers` (type individual|family|corporate, display_name, segment, owner_user_id, lifetime_value_paise, source_id)
+- `customers` (type individual|family|corporate, display_name(enc), segment, owner_user_id, lifetime_value_paise, source_id)
 - `contacts` (customer_id, channel, value(enc), verified, primary, language)
 - `consents` (contact_id, channel, purpose marketing|transactional|reminders|reviews, status, source, proof_ref, granted_at, withdrawn_at)
 - `suppression_list` (channel, value_hash, reason, at) — STOP/unsubscribe/DND, global
@@ -141,3 +141,8 @@ Unique: `messages(channel, external_id)`, `payments(gateway_ref)`, `invoices(ser
 - `ConsentService` is the shared decision point for outbound eligibility. `can_send(contact, channel, purpose)` returns false when the contact is missing from the tenant, the requested channel does not match the contact, the latest matching consent is absent or withdrawn, or a matching global suppression entry exists.
 - Grant and withdrawal operations write audit records in the same transaction. Grant creates a consent row with source/proof reference; withdrawal records `status=withdrawn` and `withdrawn_at`. A new grant after a withdrawal is a new row, preserving the earlier decision history.
 - `POST /crm/consents` and `POST /crm/consents/{id}/withdraw` require `crm:write`; `GET /crm/contacts/{id}/can-send` requires `crm:read`. All endpoints are tenant-scoped. Every outbound adapter must call the service before sending; adapters arrive in later channel tasks.
+
+## CRM records (task 008b)
+- `CRMService` provides tenant-scoped customer/contact/traveller create and read operations. State changes write audit metadata without names, contact values, DOB, or passport numbers.
+- Customer display names, contact values, traveller names, DOBs and passport fields use field encryption. Migration `0007` encrypts existing customer names online and removes the unusable plaintext-name index; offline SQL generation is rejected because it cannot safely transform existing personal data. Downgrade decrypts the values before restoring the old column type.
+- `/crm/customers` and customer child-record routes require `crm:read` for reads and `crm:write` for writes. Contact creation may leave `value_hash` unset until task 008c; `can_send` denies such contacts until suppression lookup can be performed safely.

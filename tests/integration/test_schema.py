@@ -75,6 +75,61 @@ def test_upgrade_and_downgrade_on_empty_database(database_factory, migrate) -> N
     finally:
         engine.dispose()
 
+
+def test_customer_display_names_are_encrypted_during_migration(database_factory, migrate) -> None:
+    url = database_factory()
+    migrate.upgrade(url, "0006")
+    engine = build_engine(url)
+    customer_id = uuid4()
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO customers "
+                    "(id, tenant_id, created_at, updated_at, customer_type, display_name, "
+                    "lifetime_value_paise, lifetime_value_currency) "
+                    "VALUES (:id, :tenant, now(), now(), 'individual', :name, 0, 'INR')"
+                ),
+                {
+                    "id": customer_id,
+                    "tenant": uuid4(),
+                    "name": "Migration Synthetic",
+                },
+            )
+    finally:
+        engine.dispose()
+
+    migrate.upgrade(url)
+    engine = build_engine(url)
+    try:
+        with engine.connect() as connection:
+            encrypted = connection.execute(
+                text("SELECT display_name FROM customers WHERE id = :id"),
+                {"id": customer_id},
+            ).scalar_one()
+        assert encrypted.startswith(ENCRYPTED_PREFIX)
+
+        from travelos.core.db import build_session_factory
+
+        with build_session_factory(engine)() as session:
+            loaded = session.get(Customer, customer_id)
+            assert loaded is not None
+            assert loaded.display_name == "Migration Synthetic"
+    finally:
+        engine.dispose()
+
+    migrate.downgrade(url, "0006")
+    engine = build_engine(url)
+    try:
+        with engine.connect() as connection:
+            restored = connection.execute(
+                text("SELECT display_name FROM customers WHERE id = :id"),
+                {"id": customer_id},
+            ).scalar_one()
+        assert restored == "Migration Synthetic"
+    finally:
+        engine.dispose()
+
     migrate.downgrade(url)
     engine = build_engine(url)
     try:

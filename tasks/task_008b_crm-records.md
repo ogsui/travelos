@@ -11,13 +11,14 @@ Phase 2 · Part of Task 008 · Depends on: 008a
 
 ## Scope
 - Add tenant-scoped customer, contact and traveller services and authenticated API routes.
-- Define normalized, keyed contact fingerprints for dedupe and suppression lookups; migrate synthetic-seed hashes safely.
-- Keep passport/DOB/contact values encrypted at rest and out of logs.
+- Keep customer display names, passport/DOB/contact values encrypted at rest and out of logs.
 
 ## Acceptance criteria
 - Customer, contact and traveller reads/writes enforce `crm:read`/`crm:write` and tenant isolation.
-- Duplicate contact lookup uses a keyed digest; no plaintext contact value is logged or stored in the digest column.
 - Tests verify encrypted PII and API authorization.
+
+## Follow-up
+- Keyed contact fingerprints and safe synthetic-seed hash migration are handled by Task 008c.
 
 ## Human gates
 - Do not merge customer records in this task; merge is handled in 008d.

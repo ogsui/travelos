@@ -46,6 +46,24 @@ def test_can_send_fails_closed_for_unknown_consent(db: Session) -> None:
     )
 
 
+def test_can_send_fails_closed_without_a_contact_fingerprint(db: Session) -> None:
+    contact = make_contact(db)
+    contact.value_hash = None
+    ConsentService().grant(
+        db,
+        contact_id=contact.id,
+        channel="email",
+        purpose="marketing",
+        source="web_form",
+        proof_ref="synthetic-no-hash",
+        actor=Actor.system(),
+    )
+
+    assert not ConsentService().can_send(
+        db, contact_id=contact.id, channel="email", purpose="marketing"
+    )
+
+
 def test_can_send_requires_matching_contact_channel_and_purpose(db: Session) -> None:
     contact = make_contact(db)
     service = ConsentService()

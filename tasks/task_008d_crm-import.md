@@ -1,6 +1,6 @@
-# Task 008c — CRM CSV/Excel import
+# Task 008d — CRM CSV/Excel import
 
-Phase 2 · Part of Task 008 · Depends on: 008b
+Phase 2 · Part of Task 008 · Depends on: 008c
 
 ## Read first
 - AGENTS.md
@@ -23,4 +23,4 @@ Phase 2 · Part of Task 008 · Depends on: 008b
 - Tests use only synthetic data and cover consent mapping, duplicates and malformed rows.
 
 ## Finish
-Tests first, `make check` (or direct equivalents on Windows), docs updated, commit `task-008c: ...`, report, then STOP.
+Tests first, `make check` (or direct equivalents on Windows), docs updated, commit `task-008d: ...`, report, then STOP.

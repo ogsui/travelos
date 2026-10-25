@@ -45,6 +45,9 @@ adversarial set. Real data is never accepted in this directory.
 ## CRM consent (task 008a)
 `tests/integration/test_crm_consent.py` exercises fail-closed consent decisions against PostgreSQL: unknown and mismatched consent deny; a grant permits the exact contact/channel/purpose; withdrawal and global suppression deny; and grant/withdraw audit rows omit contact values. API cases verify tenant isolation. `tests/integration/test_route_access.py` includes consent route authentication and role-denial coverage.
 
+## CRM records (task 008b)
+`tests/integration/test_crm_records.py` covers customer/contact/traveller API access, tenant isolation, validation, and encrypted customer names, contact values, dates of birth, and passport numbers. `test_schema.py` upgrades a pre-008b database with a synthetic customer row, verifies the online migration encrypts it, reads it through the ORM, and verifies downgrade restores the original value.
+
 
 ## Eval harness (task 018)
 `make eval` runs: parser field accuracy; missing-info behaviour (asks vs guesses); package match vs gold; pricing vs golden cases; reply quality rubric (helpful, accurate, on-brand, no unsupported promises; LLM-judge + human sample); content accuracy (no unverified prices/claims); injection containment; latency/cost per task. Results stored per prompt version; CI fails on regression beyond tolerance.
