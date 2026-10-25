@@ -21,6 +21,8 @@ from travelos.api.routes.auth import router as auth_router
 from travelos.api.routes.crm import router as crm_router
 from travelos.approval.service import ApprovalService
 from travelos.channels.api import router as channels_router
+from travelos.channels.web_form import InMemoryWindowLimiter, RedisWindowLimiter
+from travelos.channels.web_form_api import router as web_form_router
 from travelos.core.audit import AuditWriter
 from travelos.core.config import Mode, Settings, get_settings
 from travelos.core.db import build_engine, build_session_factory
@@ -54,6 +56,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             yield
         finally:
+            limiter = _app.state.web_form_rate_limiter
+            if isinstance(limiter, RedisWindowLimiter):
+                limiter.close()
             engine.dispose()
             logger.info("service stopped")
 
@@ -74,6 +79,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.feature_flags = FeatureFlagService(DatabaseFlagSource(session_factory), resolved)
     app.state.approvals = ApprovalService.from_settings(resolved)
+    app.state.web_form_rate_limiter = (
+        InMemoryWindowLimiter()
+        if resolved.mode is Mode.TEST
+        else RedisWindowLimiter.from_url(resolved.effective_redis_url)
+    )
     app.add_middleware(RequestContextMiddleware)
 
     if resolved.cors_origins:
@@ -91,6 +101,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(approvals_router)
     app.include_router(crm_router)
     app.include_router(channels_router)
+    app.include_router(web_form_router)
     app.include_router(autonomy_router)
 
     @app.exception_handler(HTTPException)

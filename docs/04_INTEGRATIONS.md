@@ -75,3 +75,8 @@ Rule: official API first; mock always present; fragile options OFF by default. N
 
 ## Provider onboarding checklist (owner, non-code)
 Meta Business verification + WhatsApp Business number and templates · Meta developer app + Instagram/Facebook page permissions · Google Business Profile ownership · payment gateway account · domain + email DNS · Google Ads/Meta Ads accounts with billing caps · accountant meeting for tax tables · LLM provider account with a no-training agreement for real data.
+
+## Public web form (task 009b)
+- `POST /channels/web-form` normalizes visitor messages through the channel service. It accepts no CRM identifiers and never links an unverified email/phone claim to a customer or contact.
+- Accepted message bodies are encrypted at rest. Name, email and phone form fields are validated in memory but not stored; submissions do not grant consent or trigger outbound acknowledgements.
+- A honeypot and 5-per-10-minute source limiter guard intake. Test mode uses an in-memory limiter; shadow/live use the atomic Redis limiter. The direct connection address is keyed before it is used as the limiter key; forwarded headers are ignored.

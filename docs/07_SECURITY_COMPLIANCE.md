@@ -26,6 +26,7 @@
 - **Data leakage**: redact PII before calls (placeholders); data-class vs provider-policy enforcement; no real data to free-tier providers; `llm_calls` stores metadata, token/cost counts and redacted text only, never the reversible placeholder mapping. Redacted rows are purged after 90 days (`LLM_CALL_RETENTION_DAYS`) by an audited maintenance task; the purge cannot be widened to UPDATE/TRUNCATE.
 - **Hallucination controls**: schema validation; facts (prices, availability, policies, visa) come only from system data or approved KB, else "to be confirmed by staff".
 - **Abuse**: per-contact rate limits, length limits, attachment scanning.
+- Public web-form intake uses strict field-size validation, a honeypot, and a 10-minute source rate limit (5 accepted submissions). Shadow/live use an atomic Redis counter keyed by a keyed digest of the direct client address; test mode uses an in-memory limiter. Forwarded IP headers are not trusted. A Redis failure rejects intake closed. Form name/email/phone claims are not stored or linked to CRM identity until a verification flow exists; no consent is inferred from form submission.
 - Red-team suite `tests/eval/test_llm_injection.py` runs in CI against `data/eval/llm_injection.jsonl` (see `08_TESTING_EVAL.md`).
 
 ## Privacy (India: verify with counsel)

@@ -41,6 +41,7 @@ EXPECTED_ROUTES = {
     ("POST", "/crm/merges/apply/{approval_id}"),
     ("POST", "/crm/merges/{approval_id}/undo"),
     ("GET", "/crm/timeline"),
+    ("POST", "/channels/web-form"),
     ("POST", "/approvals"),
     ("GET", "/approvals"),
     ("GET", "/approvals/{request_id}"),
@@ -88,6 +89,11 @@ def test_every_route_is_registered_in_the_access_plan(auth_app: FastAPI) -> None
 @pytest.mark.parametrize(("method", "path"), [("GET", "/health"), ("GET", "/ready")])
 def test_health_routes_are_public(auth_client: TestClient, method: str, path: str) -> None:
     assert auth_client.request(method, path).status_code == 200
+
+
+def test_web_form_route_is_public_but_validates_payload(auth_client: TestClient) -> None:
+    response = auth_client.post("/channels/web-form", json={})
+    assert response.status_code == 422
 
 
 @pytest.mark.parametrize("path", ["/auth/login", "/auth/mfa/enroll"])

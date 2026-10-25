@@ -60,6 +60,9 @@ adversarial set. Real data is never accepted in this directory.
 ## Channel foundation (task 009a)
 `tests/integration/test_channels_timeline.py` checks mock inbound idempotency, stable conversation threading, newest-first timeline order, CRM association filtering, body encryption at rest, audit redaction, and CRM timeline route permissions. `tests/integration/test_schema.py` covers the conversation/message schema, tenant-scoped uniqueness, and indexes.
 
+## Web-form intake (task 009b)
+`tests/unit/test_web_form_rate_limit.py` covers deterministic limiter boundaries and expiry. `tests/integration/test_web_form.py` checks public route validation, neutral honeypot behavior, idempotent replay, rate limiting, encrypted message storage, privacy-safe audits, and that unverified identity claims never attach a public message to an existing CRM customer/contact.
+
 
 ## Eval harness (task 018)
 `make eval` runs: parser field accuracy; missing-info behaviour (asks vs guesses); package match vs gold; pricing vs golden cases; reply quality rubric (helpful, accurate, on-brand, no unsupported promises; LLM-judge + human sample); content accuracy (no unverified prices/claims); injection containment; latency/cost per task. Results stored per prompt version; CI fails on regression beyond tolerance.
