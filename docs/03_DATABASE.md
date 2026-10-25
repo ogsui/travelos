@@ -152,3 +152,7 @@ Unique: `messages(channel, external_id)`, `payments(gateway_ref)`, `invoices(ser
 - CSV/XLSX import accepts explicit mappings from source headers to supported CRM fields. Preview returns row-level errors and duplicate candidates without echoing customer values. Raw workbooks are not persisted.
 - `/crm/imports/preview` creates a `crm.bulk_import` A1 approval request containing only keyed source/mapping digests and aggregate counts. `/crm/imports/apply/{approval_id}` re-reads the same source and writes only after that exact batch is approved; a permanent `idempotency_keys` claim prevents replay. Import writes and audit rows share the request transaction.
 - Marketing consent mappings are channel-specific and consent is granted only for an explicit affirmative value plus a proof reference for that same channel. Missing, unclear, negative, or affirmative-without-proof values create no marketing consent.
+
+## CRM merge preview (task 008e1)
+- `/crm/merges/preview` creates a locked A1 `crm.customer_merge` approval tied to a keyed digest of both customers, linked contacts, contact consent rows and travellers. The preview shows source/target names and before/after counts to the authorized CRM operator and flags same-channel overlapping contact fingerprints without exposing contact values.
+- Preview creates no CRM record changes. Applying the approved merge and reversible history are implemented in task 008e2.

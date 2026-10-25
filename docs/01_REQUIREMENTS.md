@@ -28,7 +28,7 @@ IDs are stable and referenced by tasks. Default autonomy levels (A0-A3) are defi
 - INQ-1 Parse English/Hindi/Hinglish messages into a validated Requirement (trip type, route(s), dates and flexibility, passengers by age, rooms, budget, preferences, nationality for visa, special needs, urgency).
 - INQ-2 Detect missing/ambiguous required fields per trip type; ask the customer or flag staff; never assume silently.
 - INQ-3 Per-field confidence and source span; show both next to the original message in the review screen.
-- INQ-4 Match to an existing customer; merge duplicates with human confirmation.
+- INQ-4 Match to an existing customer; merge duplicates only after locked A1 human approval, with a reversible audit trail.
 
 ## SALES — Conversation
 - SALES-1 Instant acknowledgement from approved templates.

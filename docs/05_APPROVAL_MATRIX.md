@@ -13,6 +13,7 @@ Levels live in `autonomy_policies` and are enforced by the ActionPolicy layer. D
 |---|---|---|---|
 | Capture lead, create inquiry, update CRM | A3 | — | Internal only |
 | Bulk CRM import | A1 | — | **LOCKED**; an agent or owner must approve every batch before records are written |
+| Customer merge | A1 | — | **LOCKED**; an agent or owner must approve each exact merge snapshot |
 | Parse inquiry into requirement | A3 | — | Result shown to reviewers |
 | Instant acknowledgement (approved template) | A1 in shadow, A3 live | — | Template text approved by owner |
 | Clarifying questions to customer | A1 | A2 | After >= 95% approved-unchanged over 100 cases |

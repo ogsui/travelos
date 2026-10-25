@@ -122,6 +122,12 @@ _SPECS: tuple[ActionSpec, ...] = (
         locked=True,
         notes="LOCKED; every bulk CRM import needs human approval",
     ),
+    _a(
+        "crm.customer_merge",
+        "A1",
+        locked=True,
+        notes="LOCKED; every customer merge needs human approval",
+    ),
     _a("inquiry.parse", "A3", notes="Result is shown to reviewers"),
     _a("supplier.search_package", "A3", notes="Internal supplier search"),
     _a("market.competitor_collection", "A3", notes="Per-site flag; internal"),

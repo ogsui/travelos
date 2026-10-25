@@ -1,24 +1,10 @@
-# Task 008e — Approval-gated reversible CRM merge
+# Task 008e — CRM merge umbrella
 
-Phase 2 · Part of Task 008 · Depends on: 008b, 008d
+Phase 2 · Part of Task 008 · Depends on: 008b, 008d2
 
-## Read first
-- AGENTS.md
-- docs/01_REQUIREMENTS.md
-- docs/03_DATABASE.md
-- docs/05_APPROVAL_MATRIX.md
-- docs/07_SECURITY_COMPLIANCE.md
-- tasks/task_008_crm-core.md
+Complete these bounded sub-tasks in order:
 
-## Scope
-- Propose duplicate customer merges with a human-readable before/after preview.
-- Require agent/owner approval before moving linked contacts, consents or travellers.
-- Record enough non-PII audit/merge history to reverse an approved merge.
+- [Task 008e1 — locked A1 merge preview](task_008e1_crm-merge-preview.md)
+- [Task 008e2 — approved merge apply and reversible undo](task_008e2_crm-merge-apply-undo.md)
 
-## Acceptance criteria
-- No merge occurs before approval; rejected proposals leave records unchanged.
-- An approved merge is reversible and both directions are audited.
-- Tenant boundaries and duplicate/overlapping contact cases are tested.
-
-## Finish
-Tests first, `make check` (or direct equivalents on Windows), docs updated, commit `task-008e: ...`, report, then STOP.
+The matrix action is `crm.customer_merge` and is locked at A1. Do not start 008e2 until 008e1 is complete.

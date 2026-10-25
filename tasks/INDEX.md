@@ -18,8 +18,10 @@ Run in order. `/task NNN` in OpenCode. Review, commit, then start a fresh sessio
 | 008d | CRM import (umbrella; see sub-tasks) | 2 | 008c |
 | 008d1 | CSV/Excel parsing, mapping and dry-run report | 2 | 008d |
 | 008d2 | Approval-gated import preview/apply API | 2 | 008d1 |
-| 008e | Approval-gated reversible customer merge | 2 | 008b, 008d2 |
-| 009 | Channel adapters and unified CRM timeline | 2 | 004, 008e, 008d2 |
+| 008e | CRM merge (umbrella; see sub-tasks) | 2 | 008b, 008d2 |
+| 008e1 | Locked A1 customer merge preview | 2 | 008e |
+| 008e2 | Approved merge apply and reversible undo | 2 | 008e1 |
+| 009 | Channel adapters and unified CRM timeline | 2 | 004, 008e2 |
 | 010 | Inquiry parser & missing-info loop | 2 | 006, 007, 008, 009 |
 | 011 | Sales conversation agent | 2 | 005, 006, 010 |
 | 012 | Supplier adapters & price snapshots | 2 | 004, 007 |

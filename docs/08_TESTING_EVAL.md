@@ -54,6 +54,9 @@ adversarial set. Real data is never accepted in this directory.
 ## CRM import (task 008d)
 `tests/unit/test_crm_import_parser.py` covers CSV/XLSX parsing, configurable headers, malformed rows, normalized duplicate candidates, stable batch keys, file limits, and fail-closed consent mapping. `tests/integration/test_crm_import.py` checks preview creates no CRM records, the locked A1 approval gate, exact-batch and mapping binding, duplicate skipping, proof-backed consent, rollback on failure, and replay idempotence.
 
+## CRM merge preview (task 008e1)
+`tests/integration/test_crm_merge_preview.py` checks tenant-scoped before/after summaries, same-channel overlap reporting, pending locked A1 approval creation and no CRM writes during preview.
+
 
 ## Eval harness (task 018)
 `make eval` runs: parser field accuracy; missing-info behaviour (asks vs guesses); package match vs gold; pricing vs golden cases; reply quality rubric (helpful, accurate, on-brand, no unsupported promises; LLM-judge + human sample); content accuracy (no unverified prices/claims); injection containment; latency/cost per task. Results stored per prompt version; CI fails on regression beyond tolerance.

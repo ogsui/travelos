@@ -30,11 +30,13 @@ from travelos.crm.importer import (
     CRMImportMapping,
     CRMImportReport,
 )
+from travelos.crm.merge_preview_api import router as merge_preview_router
 from travelos.crm.models import Consent, Contact, Customer, Traveller
 from travelos.crm.service import CRMService
 from travelos.security.permissions import Permission
 
 router = APIRouter(prefix="/crm", tags=["crm"])
+router.include_router(merge_preview_router)
 
 
 class ConsentGrantIn(BaseModel):
