@@ -1,12 +1,12 @@
 # 04 Integrations
 
-Rule: official API first; mock always present; fragile options OFF by default. Never invent API details — implement from the provider docs the owner supplies and leave `TODO(owner)` otherwise.
+Rule: for supplier and competitor price/inventory collection, use authorized portal pages rather than APIs, as directed by the owner. For other integrations, official API first; mock always present; fragile options OFF by default. Never invent API details — implement from the provider docs the owner supplies and leave `TODO(owner)` otherwise.
 
 | Area | Interface | Test impl | Real impl | Notes |
 |---|---|---|---|---|
-| Flights/hotels/transfers/activities | SupplierAdapter | SupplierSimulator | **TBO**, **Riya** official APIs | Sandbox first. Costs/contract: owner. |
-| Supplier portal automation | PortalSessionAdapter | Playwright vs fixtures | Optional, OFF | Risks the agency's supplier accounts; no OTP/CAPTCHA bypass; low rate; owner must record risk acceptance. |
-| Competitor prices | CompetitorPriceAdapter | Fixtures | ManualEntry; LicensedData (stub); PublicPageScraper | See scraping policy below. |
+| Flights/hotels/transfers/activities | SupplierAdapter | SupplierSimulator | Authorized supplier portal for price/inventory collection; no API for this collection path | Portal account and automated access must be authorized. Booking actions are separate and approval-gated. |
+| Supplier portal automation | PortalSessionAdapter | Playwright vs fixtures | Logged-in portal automation, OFF by default | Owner enables each portal; authorized account only; pause for operator handling of permitted CAPTCHA/OTP/MFA challenges; access blocks are unavailable. |
+| Competitor prices | CompetitorPriceAdapter | Fixtures | Authorized logged-in competitor pages; ManualEntry; LicensedData (stub) | No API for competitor-price collection. Per-site owner enablement and portal terms review required. |
 | WhatsApp | ChannelAdapter | Mock (outbox folder) | WhatsApp Business Cloud API | Needs Meta business verification, approved templates, opt-in. |
 | Email | ChannelAdapter | Mailpit | SMTP/SES + IMAP/Gmail API | SPF/DKIM/DMARC; unsubscribe header on marketing mail. |
 | SMS | ChannelAdapter | Mock | Provider with DLT registration | Indian rules: DLT + DND scrub. Low priority. |
@@ -28,6 +28,7 @@ Rule: official API first; mock always present; fragile options OFF by default. N
 | LLM | LLMProvider | Fake | OpenAI-compatible (incl. OpenCode Zen, OpenRouter, local), Anthropic | Policy flags per provider; see the section below. |
 | PDF | — | WeasyPrint | WeasyPrint | |
 | Storage | ObjectStore | MinIO | S3-compatible | Encrypted buckets. |
+
 
 ## LLM providers (task 006)
 - `LLMProvider` is a small interface: `name`, `model`, `policy`, `pricing`, and one `complete(request)` call. The request type deliberately has no tools, functions or streaming field, so injected text has no structural path to an action.
@@ -54,11 +55,11 @@ Rule: official API first; mock always present; fragile options OFF by default. N
 4. Is a no-training / data-processing addendum available for `customer` data, and what is the data-residency region?
 5. May `beam-free` ever see customer data, given its 30-day retention, or should it stay synthetic-only?
 
-## Scraping policy (MKT-1)
-- Public pages only, no login, per-site flag default OFF; enabling requires the owner to record a decision in `docs/DECISIONS.md` (site, date, rationale, robots.txt and ToS reviewed).
-- Throttle (e.g. <= 1 request / 10 s / site), cache results, identify honestly, keep volume proportional to real inquiries.
-- No CAPTCHA solving, proxy rotation, fingerprint spoofing or other evasion. Blocked = `unavailable`.
-- Parsers are fixture-tested because layouts change; expect breakage and keep ManualEntry as the permanent fallback.
+## Portal price-collection policy (MKT-1)
+- Supplier and competitor price/inventory collection may use logged-in pages only with an agency-authorized account and where the provider permits automated access. Per-portal flag defaults OFF; enabling requires the owner to record the site, account owner, date, rationale, and terms/access review in `docs/DECISIONS.md`.
+- Keep credentials in the approved secret store; never put credentials, cookies, or session tokens in source control, logs, fixtures, or prompts. Throttle (e.g. <= 1 request / 10 s / portal), cache results, identify automation honestly where required, and keep volume proportional to real inquiries.
+- CAPTCHA or OTP/MFA pauses the run in `needs_human` and notifies an authorized operator. Where provider terms permit, the operator completes the challenge interactively in the authorized session; an explicit operator resume is required, and automation verifies access is restored before continuing. Access-denied and anti-bot blocks yield `unavailable` and must not be retried until the owner resolves the access issue. No programmatic challenge solving, proxy rotation, fingerprint spoofing, or other access-control evasion.
+- Parsers are fixture-tested because layouts change; keep ManualEntry or a licensed source as fallback. Portal price access does not authorize booking, ticketing, cancellation, or refund actions.
 - Competitor prices are retail/consumer prices with different bundling; only comparable, fresh snapshots affect the ceiling.
 
 ## Questions for TBO / Riya account managers (put answers in `docs/supplier_notes/`)
@@ -80,3 +81,9 @@ Meta Business verification + WhatsApp Business number and templates · Meta deve
 - `POST /channels/web-form` normalizes visitor messages through the channel service. It accepts no CRM identifiers and never links an unverified email/phone claim to a customer or contact.
 - Accepted message bodies are encrypted at rest. Name, email and phone form fields are validated in memory but not stored; submissions do not grant consent or trigger outbound acknowledgements.
 - A honeypot and 5-per-10-minute source limiter guard intake. Test mode uses an in-memory limiter; shadow/live use the atomic Redis limiter. The direct connection address is keyed before it is used as the limiter key; forwarded headers are ignored.
+
+## Email channel adapter (task 009c)
+- `EmailChannelAdapter` implements the `ChannelAdapter` protocol for inbound RFC 2822 parsing and outbound delivery.
+- Inbound: `parse_raw_email` decodes MIME/multipart headers, extracts `Message-ID` for deduplication, threads replies via `In-Reply-To`/`References`, parses dates to timezone-aware UTC, and stores bodies encrypted at rest through `ChannelService`.
+- Outbound: enforces mode gates (blocked in `test` and `shadow` modes), the `email` kill switch, recipient consent/suppression (`ConsentService.can_send`), and approval policies (checking `ApprovalRequest.status == 'approved'` or requiring approval for A1 actions like `message.sales_reply`).
+- Transports: `MailpitTransport` provides local development SMTP relay on port 1025 without external network access; `SMTPTransport` provides standard authenticated TLS/STARTTLS delivery for production; `NullTransport` silently discards for tests.
