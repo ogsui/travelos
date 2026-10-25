@@ -51,6 +51,9 @@ adversarial set. Real data is never accepted in this directory.
 ## Contact fingerprints (task 008c)
 `tests/unit/test_contact_fingerprints.py` checks canonicalization, channel separation, secret separation, and that fingerprints do not contain plaintext. CRM writes and synthetic seeding share `ContactFingerprinter`; `tests/integration/test_synthetic_seed.py` checks matching keyed contact/suppression digests and idempotent re-seeding. `test_schema.py` verifies revision 0008 migrates a synthetic SHA-256 contact/suppression pair online and can restore the legacy digest on downgrade.
 
+## CRM import (task 008d)
+`tests/unit/test_crm_import_parser.py` covers CSV/XLSX parsing, configurable headers, malformed rows, normalized duplicate candidates, stable batch keys, file limits, and fail-closed consent mapping. `tests/integration/test_crm_import.py` checks preview creates no CRM records, the locked A1 approval gate, exact-batch and mapping binding, duplicate skipping, proof-backed consent, rollback on failure, and replay idempotence.
+
 
 ## Eval harness (task 018)
 `make eval` runs: parser field accuracy; missing-info behaviour (asks vs guesses); package match vs gold; pricing vs golden cases; reply quality rubric (helpful, accurate, on-brand, no unsupported promises; LLM-judge + human sample); content accuracy (no unverified prices/claims); injection containment; latency/cost per task. Results stored per prompt version; CI fails on regression beyond tolerance.

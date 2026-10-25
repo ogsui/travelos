@@ -19,6 +19,7 @@ LOCKED = {
     "booking.confirm",
     "booking.cancel_amend_refund",
     "campaign.audience",
+    "crm.bulk_import",
     "marketing.publish_testimonial",
     "privacy.customer_delete",
     "quote.below_floor",
@@ -65,6 +66,7 @@ def test_owner_only_actions_are_the_locked_financial_and_admin_ones() -> None:
     ("action_type", "default", "maximum"),
     [
         ("crm.capture_lead", "A3", "A3"),
+        ("crm.bulk_import", "A1", "A1"),
         ("inquiry.parse", "A3", "A3"),
         ("quote.send", "A1", "A2"),
         ("quote.follow_up", "A1", "A2"),
@@ -96,6 +98,11 @@ def test_a0_denies_and_a1_needs_approval_and_a2_a3_are_auto() -> None:
     assert approval.decision is Decision.NEEDS_APPROVAL
     assert approval.level is AutonomyLevel.A1
     assert approval.requires_four_eyes is False
+
+    import_decision = resolve("crm.bulk_import")
+    assert import_decision.decision is Decision.NEEDS_APPROVAL
+    assert import_decision.level is AutonomyLevel.A1
+    assert import_decision.locked is True
 
     review = resolve("billing.ledger_update")
     assert review.decision is Decision.AUTO

@@ -13,7 +13,7 @@ IDs are stable and referenced by tasks. Default autonomy levels (A0-A3) are defi
 ## CRM — Customers & consent
 - CRM-1 Customers, contacts (phone/email/WhatsApp), travellers (including children and infants), family links, preferences. Passport/DOB encrypted.
 - CRM-2 Consent registry per contact x channel x purpose (source, timestamp, proof, withdrawn-at). Checked before EVERY outbound message. Unknown consent = no marketing.
-- CRM-3 Import the agency's existing Excel/CSV customer and booking history with dedupe and consent-status mapping.
+- CRM-3 Import the agency's existing Excel/CSV customer and booking history with configurable column mappings, dedupe, a dry-run report, consent-status mapping and human approval before writes.
 - CRM-4 Unified communication timeline across channels.
 - CRM-5 Lifetime value, RFM segments, lead score, preferred destinations/airlines/hotels derived only from booked or stated facts.
 
