@@ -21,7 +21,7 @@ build: ## Build container images
 logs: ## Follow logs from all services
 	$(COMPOSE) logs -f
 
-seed: ## Load synthetic data (task 007 adds generators)
+seed: ## Generate and load synthetic data (set SYNTHETIC_SEED to change it)
 	$(PYTHON) -m travelos.admin.seed
 
 test: ## Run all tests
@@ -46,7 +46,7 @@ typecheck: ## Run mypy in strict mode
 
 check: lint typecheck test ## The gate: lint + typecheck + tests
 
-eval: ## Run LLM/quality evaluations (task 018)
+eval: ## Run LLM/quality evaluations (task 018 expands this)
 	$(PYTHON) -m pytest tests/eval -m eval
 
 web-install: ## Install dashboard dependencies

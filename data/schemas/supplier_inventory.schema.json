@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "supplier_inventory.schema.json",
+  "title": "Synthetic supplier inventory item",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "pattern": "^sku_[0-9]{4}$" },
+    "supplier": {
+      "type": "string",
+      "enum": ["MockAir", "MockHotels", "MockTransfers", "MockActivities", "MockVisa"]
+    },
+    "product_type": { "type": "string", "enum": ["flight", "hotel", "transfer", "activity", "visa"] },
+    "name": { "type": "string", "minLength": 4 },
+    "route": { "type": ["string", "null"] },
+    "city": { "type": "string", "minLength": 2 },
+    "valid_from": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "valid_until": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "currency": { "type": "string", "enum": ["INR"] },
+    "price_points": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 6,
+      "items": { "$ref": "#/$defs/price_point" }
+    }
+  },
+  "required": [
+    "id",
+    "supplier",
+    "product_type",
+    "name",
+    "route",
+    "city",
+    "valid_from",
+    "valid_until",
+    "currency",
+    "price_points"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "price_point": {
+      "type": "object",
+      "properties": {
+        "at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+        "net_paise": { "type": "integer", "minimum": 0 },
+        "taxes_paise": { "type": "integer", "minimum": 0 },
+        "available_count": { "type": "integer", "minimum": 0 },
+        "fare_rules": { "$ref": "#/$defs/fare_rules" }
+      },
+      "required": ["at", "net_paise", "taxes_paise", "available_count", "fare_rules"],
+      "additionalProperties": false
+    },
+    "fare_rules": {
+      "type": "object",
+      "properties": {
+        "refundable": { "type": "boolean" },
+        "change_fee_paise": { "type": "integer", "minimum": 0 },
+        "cancellation_days": { "type": "integer", "minimum": 0, "maximum": 365 }
+      },
+      "required": ["refundable", "change_fee_paise", "cancellation_days"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -5,8 +5,8 @@ An AI-assisted operating system for a travel agency: lead capture, WhatsApp/emai
 This pack is the **blueprint and task list**, not finished code. OpenCode builds the system one small task at a time from `AGENTS.md`, `docs/` and `tasks/`.
 
 ## Current status
-- **Task 001 complete** — repo scaffold, `MODE` safety gates, kill switches, structured JSON logging with redaction, `/health` + `/ready`, Docker Compose, Makefile, CI and pre-commit.
-- **Next** — task 002, core database, `Money` and encryption.
+- **Tasks 001–007 complete** — foundation, safety gates, workflow and approval engines, LLM gateway, and deterministic synthetic datasets with CRM seeding.
+- **Next** — task 008, CRM core, consent service, and import.
 - See `git log` for the per-task history and `tasks/INDEX.md` for the full plan.
 
 ## Quickstart (Docker)

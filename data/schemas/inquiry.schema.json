@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "inquiry.schema.json",
+  "title": "Synthetic inquiry with gold requirement",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "pattern": "^inq_[0-9]{4}$" },
+    "customer_id": { "type": "string", "pattern": "^cus_[0-9]{4}$" },
+    "category": {
+      "type": "string",
+      "enum": [
+        "domestic_flight",
+        "international_flight",
+        "family_package",
+        "honeymoon",
+        "pilgrimage",
+        "corporate_multi_city",
+        "group_mice",
+        "visa_only",
+        "hotel_only",
+        "vague",
+        "contradictory",
+        "hinglish",
+        "hindi",
+        "date_change_midconversation",
+        "misspelt_names",
+        "long_layover"
+      ]
+    },
+    "channel": {
+      "type": "string",
+      "enum": ["whatsapp", "email", "sms", "phone", "instagram", "facebook", "google_business", "web_form"]
+    },
+    "language": { "type": "string", "enum": ["en", "hi", "hinglish"] },
+    "received_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+    "raw_message": { "type": "string", "minLength": 8, "maxLength": 4000 },
+    "gold_requirement": { "$ref": "#/$defs/requirement" },
+    "missing_fields": { "type": "array", "items": { "type": "string" } },
+    "expected_signals": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "date_change",
+          "misspelt_name",
+          "contradiction",
+          "hinglish",
+          "hindi",
+          "long_layover",
+          "infant",
+          "child_age",
+          "vague",
+          "budget_flexible",
+          "visa_only",
+          "multi_city",
+          "group"
+        ]
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "required": [
+    "id",
+    "customer_id",
+    "category",
+    "channel",
+    "language",
+    "received_at",
+    "raw_message",
+    "gold_requirement",
+    "missing_fields",
+    "expected_signals",
+    "notes"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "requirement": {
+      "type": "object",
+      "properties": {
+        "trip_type": {
+          "type": "string",
+          "enum": ["flight", "package", "hotel", "visa", "corporate", "group", "unknown"]
+        },
+        "origin_city": { "type": ["string", "null"] },
+        "destinations": { "type": "array", "maxItems": 5, "items": { "type": "string", "minLength": 2 } },
+        "start_date": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "end_date": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "date_flexibility_days": { "type": ["integer", "null"], "minimum": 0, "maximum": 60 },
+        "adults": { "type": ["integer", "null"], "minimum": 1, "maximum": 60 },
+        "children_ages": { "type": "array", "maxItems": 8, "items": { "type": "integer", "minimum": 0, "maximum": 17 } },
+        "infants": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "rooms": { "type": ["integer", "null"], "minimum": 1, "maximum": 30 },
+        "budget_paise": { "type": ["integer", "null"], "minimum": 0 },
+        "budget_currency": { "type": "string", "enum": ["INR"] },
+        "preferences": { "type": "array", "items": { "type": "string" } },
+        "nationality": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" },
+        "special_needs": { "type": "array", "items": { "type": "string" } },
+        "urgency": { "type": "string", "enum": ["low", "normal", "high"] }
+      },
+      "required": [
+        "trip_type",
+        "origin_city",
+        "destinations",
+        "start_date",
+        "end_date",
+        "date_flexibility_days",
+        "adults",
+        "children_ages",
+        "infants",
+        "rooms",
+        "budget_paise",
+        "budget_currency",
+        "preferences",
+        "nationality",
+        "special_needs",
+        "urgency"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

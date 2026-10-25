@@ -110,6 +110,10 @@ class Settings(BaseSettings):
     environment: str = "local"
     debug: bool = False
 
+    # Synthetic data (task 007). The same seed must always produce the same
+    # fixture bytes; changing it is a deliberate dataset change.
+    synthetic_seed: int = Field(default=20261025, ge=0)
+
     timezone: str = "Asia/Kolkata"
     log_level: str = "INFO"
     log_json: bool = True

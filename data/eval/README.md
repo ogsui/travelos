@@ -10,5 +10,14 @@ real customer data — every value here is obviously synthetic.
   declared schema or allow-list and that delimiter/control-token escapes are
   neutralised. `tests/integration/test_llm_gateway.py` runs the same fixtures
   through the real gateway and asserts `schema_error` rows plus human tasks.
+- `adversarial_messages.jsonl` — the task 007 adversarial customer/supplier
+  set, generated with the rest of the synthetic dataset. Categories are prompt
+  injection, e-mail injection, scraped-page injection, abuse, PII fishing,
+  refund pressure, fake urgency, wrong language and giant messages.
+  `tests/eval/test_adversarial_dataset.py` checks coverage, obvious-fake
+  patterns and a message over 4,000 characters. The parser/reply evals in
+  task 018 consume the same file.
 - `results/` — recorded eval output per prompt version once the parser/reply/
   content evals land (tasks 007/018). Do not treat a missing result as a pass.
+
+Regenerate the adversarial file with `make seed`; do not edit it by hand.

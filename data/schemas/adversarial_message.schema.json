@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "adversarial_message.schema.json",
+  "title": "Synthetic adversarial customer or supplier input",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "pattern": "^adv_[0-9]{4}$" },
+    "category": {
+      "type": "string",
+      "enum": [
+        "prompt_injection",
+        "email_injection",
+        "scraped_page_injection",
+        "abuse",
+        "pii_fishing",
+        "refund_demand",
+        "fake_urgency",
+        "wrong_language",
+        "giant_message"
+      ]
+    },
+    "input": { "type": "string", "minLength": 5, "maxLength": 20000 },
+    "expected_behavior": {
+      "type": "string",
+      "enum": [
+        "treat_as_data",
+        "refuse_and_escalate",
+        "ask_clarification",
+        "handoff_human",
+        "ignore_instruction"
+      ]
+    },
+    "must_not": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["id", "category", "input", "expected_behavior", "must_not"],
+  "additionalProperties": false
+}

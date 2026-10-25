@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "marketing_history.schema.json",
+  "title": "Synthetic marketing history record",
+  "type": "object",
+  "anyOf": [
+    { "$ref": "#/$defs/social_post" },
+    { "$ref": "#/$defs/ad_metric" },
+    { "$ref": "#/$defs/seo_keyword" }
+  ],
+  "$defs": {
+    "social_post": {
+      "type": "object",
+      "properties": {
+        "record_type": { "type": "string", "enum": ["social_post"] },
+        "id": { "type": "string", "pattern": "^mkt_[0-9]{4}$" },
+        "platform": { "type": "string", "enum": ["instagram", "facebook", "google_business"] },
+        "published_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+        "content": { "type": "string", "minLength": 10 },
+        "metrics": { "$ref": "#/$defs/engagement" }
+      },
+      "required": ["record_type", "id", "platform", "published_at", "content", "metrics"],
+      "additionalProperties": false
+    },
+    "ad_metric": {
+      "type": "object",
+      "properties": {
+        "record_type": { "type": "string", "enum": ["ad_metric"] },
+        "id": { "type": "string", "pattern": "^mkt_[0-9]{4}$" },
+        "platform": { "type": "string", "enum": ["google_ads", "meta_ads"] },
+        "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "spend_paise": { "type": "integer", "minimum": 0 },
+        "clicks": { "type": "integer", "minimum": 0 },
+        "leads": { "type": "integer", "minimum": 0 },
+        "bookings": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["record_type", "id", "platform", "date", "spend_paise", "clicks", "leads", "bookings"],
+      "additionalProperties": false
+    },
+    "seo_keyword": {
+      "type": "object",
+      "properties": {
+        "record_type": { "type": "string", "enum": ["seo_keyword"] },
+        "id": { "type": "string", "pattern": "^mkt_[0-9]{4}$" },
+        "keyword": { "type": "string", "minLength": 4 },
+        "monthly_volume": { "type": "integer", "minimum": 0 },
+        "difficulty": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "position": { "type": ["integer", "null"], "minimum": 1, "maximum": 100 }
+      },
+      "required": ["record_type", "id", "keyword", "monthly_volume", "difficulty", "position"],
+      "additionalProperties": false
+    },
+    "engagement": {
+      "type": "object",
+      "properties": {
+        "impressions": { "type": "integer", "minimum": 0 },
+        "engagement": { "type": "integer", "minimum": 0 },
+        "clicks": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["impressions", "engagement", "clicks"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "manifest.schema.json",
+  "title": "Synthetic dataset manifest",
+  "type": "object",
+  "properties": {
+    "generator_version": { "type": "integer", "minimum": 1 },
+    "seed": { "type": "integer", "minimum": 0 },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 5 },
+          "count": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        },
+        "required": ["name", "count", "sha256"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["generator_version", "seed", "files"],
+  "additionalProperties": false
+}

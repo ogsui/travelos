@@ -58,10 +58,24 @@ class BaseTable(Base):
     )
 
 
-def build_engine(url: str, *, echo: bool = False) -> Engine:
-    """Create a synchronous SQLAlchemy engine with sane production defaults."""
+def build_engine(url: str, *, echo: bool = False, connect_timeout: int | None = None) -> Engine:
+    """Create a synchronous SQLAlchemy engine with sane production defaults.
 
-    return create_engine(url, pool_pre_ping=True, pool_recycle=1800, echo=echo, future=True)
+    ``connect_timeout`` is for short-lived admin jobs (for example ``make seed``)
+    that should report an unreachable database quickly rather than wait for the
+    operating system's TCP timeout. Long-running services leave it unset.
+    """
+
+    if connect_timeout is None:
+        return create_engine(url, pool_pre_ping=True, pool_recycle=1800, echo=echo, future=True)
+    return create_engine(
+        url,
+        pool_pre_ping=True,
+        pool_recycle=1800,
+        echo=echo,
+        future=True,
+        connect_args={"connect_timeout": connect_timeout},
+    )
 
 
 def build_session_factory(engine: Engine) -> sessionmaker[Session]:

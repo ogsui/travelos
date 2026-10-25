@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "customer.schema.json",
+  "title": "Synthetic customer",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "pattern": "^cus_[0-9]{4}$" },
+    "customer_type": { "type": "string", "enum": ["individual", "family", "corporate"] },
+    "display_name": { "type": "string", "minLength": 3, "maxLength": 200 },
+    "segment": {
+      "type": "string",
+      "enum": ["new", "repeat", "family", "honeymoon", "corporate", "pilgrimage", "group", "inactive"]
+    },
+    "language": { "type": "string", "enum": ["en", "hi", "hinglish"] },
+    "household_id": { "type": ["string", "null"], "pattern": "^hh_[0-9]{3}$" },
+    "lifetime_value_paise": { "type": "integer", "minimum": 0 },
+    "lifetime_value_currency": { "type": "string", "enum": ["INR"] },
+    "created_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+    "past_bookings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/booking" }
+    },
+    "contacts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/contact" }
+    },
+    "consents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consent" }
+    },
+    "travellers": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": { "$ref": "#/$defs/traveller" }
+    }
+  },
+  "required": [
+    "id",
+    "customer_type",
+    "display_name",
+    "segment",
+    "language",
+    "household_id",
+    "lifetime_value_paise",
+    "lifetime_value_currency",
+    "created_at",
+    "past_bookings",
+    "contacts",
+    "consents",
+    "travellers"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "booking": {
+      "type": "object",
+      "properties": {
+        "destination": { "type": "string", "minLength": 2 },
+        "product_type": { "type": "string", "enum": ["flight", "package", "hotel", "visa", "group"] },
+        "year": { "type": "integer", "minimum": 2019, "maximum": 2026 },
+        "amount_paise": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["destination", "product_type", "year", "amount_paise"],
+      "additionalProperties": false
+    },
+    "contact": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^con_[0-9]{4}_[0-9]{1,2}$" },
+        "channel": {
+          "type": "string",
+          "enum": ["whatsapp", "email", "sms", "phone", "instagram", "facebook", "google_business", "web_form"]
+        },
+        "value": {
+          "anyOf": [
+            { "type": "string", "pattern": "^[a-z0-9._-]+@example\\.test$" },
+            { "type": "string", "pattern": "^\\+91 00000 [0-9]{5}$" }
+          ]
+        },
+        "value_kind": { "type": "string", "enum": ["email", "phone"] },
+        "verified": { "type": "boolean" },
+        "primary": { "type": "boolean" },
+        "language": { "type": "string", "enum": ["en", "hi", "hinglish"] },
+        "suppressed": { "type": "boolean" },
+        "suppression_reason": { "type": ["string", "null"], "enum": ["stop_keyword", "unsubscribe", "dnd", null] }
+      },
+      "required": [
+        "id",
+        "channel",
+        "value",
+        "value_kind",
+        "verified",
+        "primary",
+        "language",
+        "suppressed",
+        "suppression_reason"
+      ],
+      "additionalProperties": false
+    },
+    "consent": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^cns_[0-9]{4}_[0-9]{1,2}$" },
+        "contact_id": { "type": "string", "pattern": "^con_[0-9]{4}_[0-9]{1,2}$" },
+        "channel": {
+          "type": "string",
+          "enum": ["whatsapp", "email", "sms", "phone", "instagram", "facebook", "google_business", "web_form"]
+        },
+        "purpose": { "type": "string", "enum": ["marketing", "transactional", "reminders", "reviews"] },
+        "status": { "type": "string", "enum": ["granted", "withdrawn"] },
+        "source": {
+          "type": "string",
+          "enum": ["web_form", "booking_form", "phone_call", "whatsapp_keyword", "import", "in_person"]
+        },
+        "proof_ref": { "type": ["string", "null"] },
+        "granted_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+        "withdrawn_at": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        }
+      },
+      "required": ["id", "contact_id", "channel", "purpose", "status", "source", "proof_ref", "granted_at", "withdrawn_at"],
+      "additionalProperties": false
+    },
+    "traveller": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^trv_[0-9]{4}_[0-9]{1,2}$" },
+        "full_name_as_passport": { "type": "string", "pattern": "^[A-Z][A-Z ]+$" },
+        "dob": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "gender": { "type": "string", "enum": ["female", "male", "other"] },
+        "passport_no": { "type": ["string", "null"], "pattern": "^F7[0-9]{6}$" },
+        "passport_expiry": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "nationality": { "type": "string", "pattern": "^[A-Z]{2}$" },
+        "is_minor": { "type": "boolean" },
+        "age_years": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "meal_pref": { "type": ["string", "null"] },
+        "seat_pref": { "type": ["string", "null"] }
+      },
+      "required": [
+        "id",
+        "full_name_as_passport",
+        "dob",
+        "gender",
+        "passport_no",
+        "passport_expiry",
+        "nationality",
+        "is_minor",
+        "age_years",
+        "meal_pref",
+        "seat_pref"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

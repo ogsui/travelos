@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "payment.schema.json",
+  "title": "Synthetic payment and webhook event",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "pattern": "^pay_[0-9]{4}$" },
+    "customer_id": { "type": "string", "pattern": "^cus_[0-9]{4}$" },
+    "quote_id": { "type": ["string", "null"], "pattern": "^quo_[0-9]{4}$" },
+    "gateway": { "type": "string", "enum": ["mock_gateway"] },
+    "link_id": { "type": "string", "minLength": 4 },
+    "amount_paise": { "type": "integer", "minimum": 0 },
+    "expected_total_paise": { "type": "integer", "minimum": 0 },
+    "currency": { "type": "string", "enum": ["INR"] },
+    "kind": { "type": "string", "enum": ["full", "partial", "failed", "duplicate", "late", "refund"] },
+    "state": { "type": "string", "enum": ["created", "pending", "paid", "failed", "refunded"] },
+    "gateway_ref": { "type": "string", "minLength": 4 },
+    "paid_at": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "webhook_events": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/event" }
+    }
+  },
+  "required": [
+    "id",
+    "customer_id",
+    "quote_id",
+    "gateway",
+    "link_id",
+    "amount_paise",
+    "expected_total_paise",
+    "currency",
+    "kind",
+    "state",
+    "gateway_ref",
+    "paid_at",
+    "webhook_events"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "event": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["payment_paid", "payment_failed", "refund_requested"] },
+        "at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+        "duplicate": { "type": "boolean" }
+      },
+      "required": ["type", "at", "duplicate"],
+      "additionalProperties": false
+    }
+  }
+}

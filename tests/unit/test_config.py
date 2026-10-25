@@ -42,9 +42,21 @@ def test_defaults_are_safe() -> None:
     settings = Settings(_env_file=None)
 
     assert settings.mode is Mode.TEST
+    assert settings.synthetic_seed == 20261025
     assert settings.live_confirmed is False
     assert settings.kill_switches == KillSwitches()
     assert settings.kill_switches.enabled() == ()
+
+
+def test_synthetic_seed_is_configurable_and_non_negative(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SYNTHETIC_SEED", "42")
+
+    assert Settings(_env_file=None).synthetic_seed == 42
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, synthetic_seed=-1)
 
 
 def test_all_kill_switches_default_off() -> None:

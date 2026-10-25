@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "supplier_scenario.schema.json",
+  "title": "Synthetic supplier simulator failure or drift scenario",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "pattern": "^scn_[0-9]{4}$" },
+    "sku_id": { "type": "string", "pattern": "^sku_[0-9]{4}$" },
+    "scenario": {
+      "type": "string",
+      "enum": ["price_change", "sold_out", "timeout", "partial_failure", "hold_expiry"]
+    },
+    "at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+    "details": { "type": "object" }
+  },
+  "required": ["id", "sku_id", "scenario", "at", "details"],
+  "additionalProperties": false
+}
