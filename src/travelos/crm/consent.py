@@ -51,7 +51,7 @@ class ConsentService:
         tenant_id: UUID = DEFAULT_TENANT_ID,
         now: datetime | None = None,
     ) -> Consent:
-        contact = self._contact(db, contact_id=contact_id, tenant_id=tenant_id)
+        contact = self._contact(db, contact_id=contact_id, tenant_id=tenant_id, lock=True)
         self._validate_scope(contact, channel=channel, purpose=purpose)
         normalized_source = source.strip()
         if not normalized_source:
@@ -99,6 +99,14 @@ class ConsentService:
                 Consent.id == consent_id,
                 Consent.tenant_id == tenant_id,
             )
+        ).scalar_one_or_none()
+        if consent is None:
+            raise CRMRecordNotFoundError("consent not found")
+        self._contact(db, contact_id=consent.contact_id, tenant_id=tenant_id, lock=True)
+        consent = db.execute(
+            select(Consent)
+            .where(Consent.id == consent_id, Consent.tenant_id == tenant_id)
+            .with_for_update()
         ).scalar_one_or_none()
         if consent is None:
             raise CRMRecordNotFoundError("consent not found")
@@ -160,10 +168,11 @@ class ConsentService:
         return latest is not None and latest.status == "granted" and latest.withdrawn_at is None
 
     @staticmethod
-    def _contact(db: Session, *, contact_id: UUID, tenant_id: UUID) -> Contact:
-        contact = db.execute(
-            select(Contact).where(Contact.id == contact_id, Contact.tenant_id == tenant_id)
-        ).scalar_one_or_none()
+    def _contact(db: Session, *, contact_id: UUID, tenant_id: UUID, lock: bool = False) -> Contact:
+        statement = select(Contact).where(Contact.id == contact_id, Contact.tenant_id == tenant_id)
+        if lock:
+            statement = statement.with_for_update()
+        contact = db.execute(statement).scalar_one_or_none()
         if contact is None:
             raise CRMRecordNotFoundError("contact not found")
         return contact

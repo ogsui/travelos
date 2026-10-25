@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     CHAR,
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -48,11 +49,49 @@ class Customer(BaseTable):
         CHAR(3), nullable=False, default="INR", server_default="INR"
     )
     source_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True))
+    merged_into_customer_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("customers.id", ondelete="SET NULL")
+    )
+    merged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         CheckConstraint(f"customer_type IN ({_CUSTOMER_TYPES})", name="customer_type"),
         CheckConstraint("lifetime_value_paise >= 0", name="lifetime_value_non_negative"),
         Index("ix_customers_segment", "segment"),
+        Index("ix_customers_merged_into_customer_id", "merged_into_customer_id"),
+    )
+
+
+class CustomerMergeHistory(BaseTable):
+    """Non-PII journal needed to safely reverse an approved customer merge."""
+
+    __tablename__ = "customer_merge_history"
+
+    approval_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("approval_requests.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
+    source_customer_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("customers.id", ondelete="RESTRICT"), nullable=False
+    )
+    target_customer_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("customers.id", ondelete="RESTRICT"), nullable=False
+    )
+    contacts_before: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
+    contacts_after: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
+    traveller_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    state: Mapped[str] = mapped_column(String(20), nullable=False, default="applied")
+    applied_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint("state IN ('applied', 'undone')", name="state"),
+        Index("ix_customer_merge_history_source", "tenant_id", "source_customer_id"),
+        Index("ix_customer_merge_history_target", "tenant_id", "target_customer_id"),
     )
 
 

@@ -21,7 +21,8 @@ Phase 2 · Depends on: 002, 003, 007 · Requirements: CRM-1, CRM-2, CRM-3, CRM-4
     - 008d2: locked A1 approval and preview/apply API with transactional writes.
   - 008e: CRM merge, split into bounded sub-tasks:
     - 008e1: locked A1 merge preview and exact snapshot approval.
-    - 008e2: apply approved merge and provide reversible undo.
+    - 008e2a: apply approved merge and record reversible state.
+    - 008e2b: provide guarded merge undo.
 - Unified communication timeline moves to Task 009, after normalized channel events exist; Task 009 must include the CRM timeline query.
 
 ## Acceptance criteria
@@ -29,7 +30,7 @@ Phase 2 · Depends on: 002, 003, 007 · Requirements: CRM-1, CRM-2, CRM-3, CRM-4
 - `can_send` is false for unknown/withdrawn consent (008a).
 - Importer handles duplicates and bad rows and produces a report; unknown consent maps to no marketing (008d1).
 - Bulk import writes require locked A1 `crm.bulk_import` approval (008d2).
-- Merge requires locked A1 `crm.customer_merge` approval (008e1) and is reversible via audit (008e2).
+- Merge requires locked A1 `crm.customer_merge` approval (008e1), approved apply (008e2a), and guarded undo (008e2b).
 
 ## Human gates / approvals
 - Customer merges and bulk imports need agent/owner approval. They are locked at A1 as `crm.customer_merge` and `crm.bulk_import` respectively.

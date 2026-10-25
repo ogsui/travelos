@@ -92,7 +92,10 @@ class CRMService:
         return list(
             db.execute(
                 select(Customer)
-                .where(Customer.tenant_id == tenant_id)
+                .where(
+                    Customer.tenant_id == tenant_id,
+                    Customer.merged_into_customer_id.is_(None),
+                )
                 .order_by(Customer.created_at.desc(), Customer.id.desc())
                 .limit(limit)
                 .offset(offset)
@@ -114,7 +117,7 @@ class CRMService:
         actor: Actor,
         tenant_id: UUID = DEFAULT_TENANT_ID,
     ) -> Contact:
-        self.get_customer(db, customer_id=customer_id, tenant_id=tenant_id)
+        self._get_active_customer(db, customer_id=customer_id, tenant_id=tenant_id)
         normalized_value = value.strip()
         if channel not in _CHANNELS:
             raise CRMValidationError("unsupported contact channel")
@@ -189,7 +192,7 @@ class CRMService:
         actor: Actor,
         tenant_id: UUID = DEFAULT_TENANT_ID,
     ) -> Traveller:
-        self.get_customer(db, customer_id=customer_id, tenant_id=tenant_id)
+        self._get_active_customer(db, customer_id=customer_id, tenant_id=tenant_id)
         normalized_nationality = nationality.strip().upper() if nationality else None
         if normalized_nationality and len(normalized_nationality) != 2:
             raise CRMValidationError("nationality must be a two-letter code")
@@ -260,6 +263,18 @@ class CRMService:
                 subject_id=contact.id,
                 after={"customer_id": customer_id, "is_primary": False},
             )
+
+    def _get_active_customer(self, db: Session, *, customer_id: UUID, tenant_id: UUID) -> Customer:
+        customer = db.execute(
+            select(Customer)
+            .where(Customer.id == customer_id, Customer.tenant_id == tenant_id)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if customer is None:
+            raise CRMRecordNotFoundError("customer not found")
+        if customer.merged_into_customer_id is not None:
+            raise CRMValidationError("cannot add records to a merged customer")
+        return customer
 
 
 def _strip_optional(value: str | None) -> str | None:

@@ -15,7 +15,7 @@ from travelos.core.db import build_engine
 from travelos.core.errors import AppendOnlyError
 from travelos.core.models import AuditLog, User
 from travelos.crm.fingerprints import ContactFingerprinter
-from travelos.crm.models import Consent, Contact, Customer, SuppressionEntry, Traveller
+from travelos.crm.models import Consent, Contact, Customer, Traveller
 from travelos.security.encryption import ENCRYPTED_PREFIX, default_key_provider
 from travelos.workflow.models import WorkflowTimer
 
@@ -29,6 +29,7 @@ BUSINESS_TABLES = {
     "business_rule_versions",
     "consents",
     "contacts",
+    "customer_merge_history",
     "customers",
     "feature_flags",
     "human_tasks",
@@ -152,33 +153,45 @@ def test_contact_fingerprints_migrate_legacy_hashes(database_factory, migrate) -
     value = "Migration.Contact@example.test"
     legacy_hash = hashlib.sha256(value.encode("utf-8")).hexdigest()
     try:
-        from travelos.core.db import build_session_factory
-
-        with build_session_factory(engine)() as session:
-            customer = Customer(
-                id=customer_id,
-                customer_type="individual",
-                display_name="Migration Synthetic",
+        with engine.begin() as connection:
+            tenant_id = "00000000-0000-0000-0000-000000000001"
+            connection.execute(
+                text(
+                    "INSERT INTO customers "
+                    "(id, tenant_id, created_at, updated_at, customer_type, display_name, "
+                    "lifetime_value_paise, lifetime_value_currency) "
+                    "VALUES (:id, :tenant, now(), now(), 'individual', 'Migration Synthetic', 0, 'INR')"
+                ),
+                {"id": customer_id, "tenant": tenant_id},
             )
-            session.add(customer)
-            session.flush()
-            session.add(
-                Contact(
-                    id=contact_id,
-                    customer_id=customer_id,
-                    channel=channel,
-                    value=value,
-                    value_hash=legacy_hash,
-                )
+            connection.execute(
+                text(
+                    "INSERT INTO contacts "
+                    "(id, tenant_id, created_at, updated_at, customer_id, channel, value, value_hash) "
+                    "VALUES (:id, :tenant, now(), now(), :customer, :channel, :value, :hash)"
+                ),
+                {
+                    "id": contact_id,
+                    "tenant": tenant_id,
+                    "customer": customer_id,
+                    "channel": channel,
+                    "value": value,
+                    "hash": legacy_hash,
+                },
             )
-            session.add(
-                SuppressionEntry(
-                    channel=channel,
-                    value_hash=legacy_hash,
-                    reason="synthetic_migration",
-                )
+            connection.execute(
+                text(
+                    "INSERT INTO suppression_list "
+                    "(id, tenant_id, created_at, updated_at, channel, value_hash, reason) "
+                    "VALUES (:id, :tenant, now(), now(), :channel, :hash, 'synthetic_migration')"
+                ),
+                {
+                    "id": uuid4(),
+                    "tenant": tenant_id,
+                    "channel": channel,
+                    "hash": legacy_hash,
+                },
             )
-            session.commit()
 
         migrate.upgrade(url)
         expected = ContactFingerprinter(default_key_provider()).fingerprint(channel, value)
@@ -336,6 +349,10 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
             "ix_contacts_customer_channel",
             "ix_contacts_channel_value_hash",
             "uq_contacts_primary_per_customer",
+        },
+        "customer_merge_history": {
+            "ix_customer_merge_history_tenant_id_source_customer_id",
+            "ix_customer_merge_history_tenant_id_target_customer_id",
         },
         "consents": {"ix_consents_contact_purpose"},
         "idempotency_keys": {"ix_idempotency_keys_expires_at"},

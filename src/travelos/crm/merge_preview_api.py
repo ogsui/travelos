@@ -14,6 +14,7 @@ from travelos.approval.service import ApprovalService
 from travelos.core.audit import Actor
 from travelos.crm.errors import CRMRecordNotFoundError, CRMValidationError
 from travelos.crm.merge_preview import CustomerMergePreviewService
+from travelos.crm.merge_service import CustomerMergeService
 from travelos.security.permissions import Permission
 
 router = APIRouter()
@@ -46,6 +47,15 @@ class CustomerMergePreviewOut(BaseModel):
     overlapping_contacts: list[CustomerMergeOverlapOut]
     approval_id: UUID
     approval_status: str
+
+
+class CustomerMergeApplyOut(BaseModel):
+    approval_id: UUID
+    source_customer_id: UUID
+    target_customer_id: UUID
+    moved_contacts: int
+    moved_travellers: int
+    already_applied: bool
 
 
 @router.post("/merges/preview", response_model=CustomerMergePreviewOut)
@@ -93,3 +103,26 @@ def preview_customer_merge(
         approval_id=approval.id,
         approval_status=approval.status,
     )
+
+
+@router.post("/merges/apply/{approval_id}", response_model=CustomerMergeApplyOut)
+def apply_customer_merge(
+    approval_id: UUID,
+    request: Request,
+    auth: Annotated[AuthContext, Depends(require(Permission.CRM_WRITE))],
+    db: Annotated[Session, Depends(get_db)],
+) -> CustomerMergeApplyOut:
+    try:
+        result = CustomerMergeService().apply_approved(
+            db,
+            approval_id=approval_id,
+            actor=Actor.user(auth.user.id),
+            tenant_id=auth.user.tenant_id,
+            ip=client_ip(request),
+        )
+    except CRMRecordNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="approval_not_found") from exc
+    except CRMValidationError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    db.commit()
+    return CustomerMergeApplyOut.model_validate(result, from_attributes=True)

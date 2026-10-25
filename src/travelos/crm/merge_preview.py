@@ -116,6 +116,8 @@ def load_merge_snapshot(
     target = by_id.get(target_customer_id)
     if source is None or target is None:
         raise CRMRecordNotFoundError("customer not found")
+    if source.merged_into_customer_id is not None or target.merged_into_customer_id is not None:
+        raise CRMValidationError("merged customers cannot be part of another merge")
 
     customer_ids = [source.id, target.id]
     contact_statement = (
@@ -134,17 +136,14 @@ def load_merge_snapshot(
     contacts = db.execute(contact_statement).scalars().all()
     travellers = db.execute(traveller_statement).scalars().all()
     contact_ids = [contact.id for contact in contacts]
-    consents = (
-        db.execute(
-            select(Consent)
-            .where(Consent.tenant_id == tenant_id, Consent.contact_id.in_(contact_ids))
-            .order_by(Consent.id)
-        )
-        .scalars()
-        .all()
-        if contact_ids
-        else []
+    consent_statement = (
+        select(Consent)
+        .where(Consent.tenant_id == tenant_id, Consent.contact_id.in_(contact_ids))
+        .order_by(Consent.id)
     )
+    if lock:
+        consent_statement = consent_statement.with_for_update()
+    consents = db.execute(consent_statement).scalars().all() if contact_ids else []
 
     source_contacts = tuple(contact for contact in contacts if contact.customer_id == source.id)
     target_contacts = tuple(contact for contact in contacts if contact.customer_id == target.id)

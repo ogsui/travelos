@@ -6,9 +6,10 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from travelos.approval.models import ApprovalRequest
-from travelos.crm.models import Contact, Customer
+from travelos.crm.models import Contact, Customer, CustomerMergeHistory
 from travelos.security.totp import generate_code
 
 pytestmark = pytest.mark.integration
@@ -117,3 +118,232 @@ def test_merge_preview_rejects_same_and_cross_tenant_customers(
 
     assert same.status_code == 422
     assert cross_tenant.status_code == 404
+
+
+def test_merge_apply_preserves_links_consents_and_primary_flags(
+    auth_client: TestClient, make_user, login, db_factory
+) -> None:
+    from travelos.crm.models import Consent, Traveller
+
+    requester = make_user(email="merge-apply-agent@example.test", role="agent")
+    reviewer = make_user(email="merge-apply-owner@example.test", role="owner", mfa_enrolled=True)
+    requester_headers = bearer(token_for(auth_client, requester, login))
+    reviewer_headers = bearer(token_for(auth_client, reviewer, login))
+
+    def create_customer(name: str) -> str:
+        response = auth_client.post(
+            "/crm/customers",
+            json={"customer_type": "family", "display_name": name},
+            headers=requester_headers,
+        )
+        assert response.status_code == 201, response.text
+        return response.json()["id"]
+
+    source_id, target_id = (
+        create_customer("Merge Source Synthetic"),
+        create_customer("Merge Target Synthetic"),
+    )
+    source_contact = auth_client.post(
+        f"/crm/customers/{source_id}/contacts",
+        json={"channel": "email", "value": "source.merge@example.test", "is_primary": True},
+        headers=requester_headers,
+    ).json()
+    auth_client.post(
+        f"/crm/customers/{target_id}/contacts",
+        json={"channel": "phone", "value": "+919000000008", "is_primary": True},
+        headers=requester_headers,
+    ).json()
+    source_traveller = auth_client.post(
+        f"/crm/customers/{source_id}/travellers",
+        json={"full_name_as_passport": "SYNTHETIC TRAVELLER", "is_minor": False},
+        headers=requester_headers,
+    ).json()
+    consent = auth_client.post(
+        "/crm/consents",
+        json={
+            "contact_id": source_contact["id"],
+            "channel": "email",
+            "purpose": "marketing",
+            "source": "synthetic_test",
+            "proof_ref": "synthetic-proof",
+        },
+        headers=requester_headers,
+    )
+    assert consent.status_code == 201, consent.text
+    preview = auth_client.post(
+        "/crm/merges/preview",
+        json={"source_customer_id": source_id, "target_customer_id": target_id},
+        headers=requester_headers,
+    )
+    assert preview.status_code == 200, preview.text
+    approval_id = preview.json()["approval_id"]
+    approved = auth_client.post(
+        f"/approvals/{approval_id}/decision",
+        json={"decision": "approve"},
+        headers=reviewer_headers,
+    )
+    assert approved.status_code == 200
+
+    applied = auth_client.post(f"/crm/merges/apply/{approval_id}", headers=requester_headers)
+    assert applied.status_code == 200, applied.text
+    assert applied.json()["moved_contacts"] == 1
+    assert applied.json()["moved_travellers"] == 1
+    replay = auth_client.post(f"/crm/merges/apply/{approval_id}", headers=requester_headers)
+    assert replay.status_code == 200 and replay.json()["already_applied"] is True
+    active_customers = auth_client.get("/crm/customers", headers=requester_headers)
+    assert active_customers.status_code == 200
+    assert source_id not in {row["id"] for row in active_customers.json()}
+    blocked_contact = auth_client.post(
+        f"/crm/customers/{source_id}/contacts",
+        json={"channel": "email", "value": "blocked.synthetic@example.test"},
+        headers=requester_headers,
+    )
+    blocked_traveller = auth_client.post(
+        f"/crm/customers/{source_id}/travellers",
+        json={"full_name_as_passport": "BLOCKED SYNTHETIC"},
+        headers=requester_headers,
+    )
+    assert blocked_contact.status_code == blocked_traveller.status_code == 422
+
+    with db_factory() as db:
+        moved_contact = db.get(Contact, UUID(source_contact["id"]))
+        moved_traveller = db.get(Traveller, UUID(source_traveller["id"]))
+        consent_row = db.get(Consent, UUID(consent.json()["id"]))
+        assert moved_contact is not None and moved_contact.customer_id == UUID(target_id)
+        assert moved_contact.is_primary is False  # target already had a primary contact
+        assert moved_traveller is not None and moved_traveller.customer_id == UUID(target_id)
+        assert consent_row is not None and consent_row.contact_id == moved_contact.id
+        source = db.get(Customer, UUID(source_id))
+        assert source is not None and source.merged_into_customer_id == UUID(target_id)
+
+
+@pytest.mark.parametrize(
+    ("decision", "edited", "stale"),
+    [("approve", False, True), ("reject", False, False), ("edit", True, False)],
+)
+def test_unapproved_edited_rejected_and_stale_merges_are_denied(
+    decision: str, edited: bool, stale: bool, auth_client: TestClient, make_user, login, db_factory
+) -> None:
+    requester = make_user(email=f"merge-safety-{decision}@example.test", role="agent")
+    reviewer = make_user(
+        email=f"merge-safety-owner-{decision}@example.test", role="owner", mfa_enrolled=True
+    )
+    requester_headers = bearer(token_for(auth_client, requester, login))
+    reviewer_headers = bearer(token_for(auth_client, reviewer, login))
+
+    def customer(name: str) -> str:
+        return auth_client.post(
+            "/crm/customers",
+            json={"customer_type": "individual", "display_name": name},
+            headers=requester_headers,
+        ).json()["id"]
+
+    source_id, target_id = customer("Safety Source Synthetic"), customer("Safety Target Synthetic")
+    preview = auth_client.post(
+        "/crm/merges/preview",
+        json={"source_customer_id": source_id, "target_customer_id": target_id},
+        headers=requester_headers,
+    ).json()
+    approval_id = preview["approval_id"]
+    assert (
+        auth_client.post(f"/crm/merges/apply/{approval_id}", headers=requester_headers).status_code
+        == 409
+    )
+
+    body: dict[str, object] = {"decision": decision}
+    if decision == "reject":
+        body["reason"] = "synthetic duplicate check failed"
+    elif edited:
+        body["final"] = {"source_customer_id": source_id}
+    review = auth_client.post(
+        f"/approvals/{approval_id}/decision", json=body, headers=reviewer_headers
+    )
+    assert review.status_code == 200
+    expected_status = {"approve": "approved", "reject": "rejected", "edit": "edited"}[decision]
+    assert review.json()["status"] == expected_status
+
+    if stale:
+        assert (
+            auth_client.post(
+                f"/crm/customers/{source_id}/contacts",
+                json={"channel": "email", "value": "changed.after.preview@example.test"},
+                headers=requester_headers,
+            ).status_code
+            == 201
+        )
+    other = make_user(
+        email=f"merge-cross-tenant-{decision}@example.test",
+        role="agent",
+        tenant_id=UUID("00000000-0000-0000-0000-000000000003"),
+    )
+    assert (
+        auth_client.post(
+            f"/crm/merges/apply/{approval_id}",
+            headers=bearer(token_for(auth_client, other, login)),
+        ).status_code
+        == 409
+    )
+    assert (
+        auth_client.post(f"/crm/merges/apply/{approval_id}", headers=requester_headers).status_code
+        == 409
+    )
+    with db_factory() as db:
+        assert db.get(Customer, UUID(source_id)).merged_into_customer_id is None
+        assert db.scalar(select(CustomerMergeHistory)) is None
+
+
+def test_merge_apply_rolls_back_links_history_and_marker_on_failure(
+    auth_client: TestClient, make_user, login, db_factory, monkeypatch
+) -> None:
+    from travelos.core.audit import AuditWriter
+
+    requester = make_user(email="merge-rollback-agent@example.test", role="agent")
+    reviewer = make_user(email="merge-rollback-owner@example.test", role="owner", mfa_enrolled=True)
+    requester_headers = bearer(token_for(auth_client, requester, login))
+    reviewer_headers = bearer(token_for(auth_client, reviewer, login))
+
+    def customer(name: str) -> str:
+        return auth_client.post(
+            "/crm/customers",
+            json={"customer_type": "individual", "display_name": name},
+            headers=requester_headers,
+        ).json()["id"]
+
+    source_id, target_id = (
+        customer("Rollback Source Synthetic"),
+        customer("Rollback Target Synthetic"),
+    )
+    contact = auth_client.post(
+        f"/crm/customers/{source_id}/contacts",
+        json={"channel": "email", "value": "rollback.merge@example.test"},
+        headers=requester_headers,
+    ).json()
+    preview = auth_client.post(
+        "/crm/merges/preview",
+        json={"source_customer_id": source_id, "target_customer_id": target_id},
+        headers=requester_headers,
+    ).json()
+    approval_id = preview["approval_id"]
+    assert (
+        auth_client.post(
+            f"/approvals/{approval_id}/decision",
+            json={"decision": "approve"},
+            headers=reviewer_headers,
+        ).status_code
+        == 200
+    )
+
+    original_record = AuditWriter.record
+
+    def fail_merge_audit(self, db, **kwargs):
+        if kwargs.get("action") == "crm.customer_merge_applied":
+            raise RuntimeError("synthetic audit failure")
+        return original_record(self, db, **kwargs)
+
+    monkeypatch.setattr(AuditWriter, "record", fail_merge_audit)
+    with pytest.raises(RuntimeError, match="synthetic audit failure"):
+        auth_client.post(f"/crm/merges/apply/{approval_id}", headers=requester_headers)
+    with db_factory() as db:
+        assert db.get(Customer, UUID(source_id)).merged_into_customer_id is None
+        assert db.get(Contact, UUID(contact["id"])).customer_id == UUID(source_id)
+        assert db.scalar(select(CustomerMergeHistory)) is None
