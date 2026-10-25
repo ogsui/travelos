@@ -1,26 +1,10 @@
-# Task 008d — CRM CSV/Excel import
+# Task 008d — CRM import umbrella
 
 Phase 2 · Part of Task 008 · Depends on: 008c
 
-## Read first
-- AGENTS.md
-- docs/01_REQUIREMENTS.md
-- docs/03_DATABASE.md
-- docs/07_SECURITY_COMPLIANCE.md
-- tasks/task_008_crm-core.md
+The import work is split to keep each implementation bounded:
 
-## Needs from owner
-- Customer workbook column names only; do not place real customer data in the repository.
+- [Task 008d1 — parsing and dry-run report](task_008d1_crm-import-parse.md)
+- [Task 008d2 — approval-gated import API](task_008d2_crm-import-approval.md)
 
-## Scope
-- Add configurable CSV/XLSX column mappings, validation and duplicate detection with a dry-run report.
-- Map unknown, missing or unclear marketing-consent values to no marketing consent.
-- Require agent/owner approval before an import writes records.
-
-## Acceptance criteria
-- Bad rows are reported individually; valid rows and duplicate candidates are summarized.
-- Import is idempotent for the same source batch and mapping.
-- Tests use only synthetic data and cover consent mapping, duplicates and malformed rows.
-
-## Finish
-Tests first, `make check` (or direct equivalents on Windows), docs updated, commit `task-008d: ...`, report, then STOP.
+Complete 008d1 before starting 008d2. The import write path requires the locked A1 `crm.bulk_import` approval. Follow each sub-task's read-first list, acceptance criteria, tests, and commit instructions.

@@ -16,18 +16,21 @@ Phase 2 · Depends on: 002, 003, 007 · Requirements: CRM-1, CRM-2, CRM-3, CRM-4
   - 008a: Consent service/API and fail-closed `can_send` (current sub-task).
   - 008b: Customer/contact/traveller services and API, including encrypted customer names.
   - 008c: Keyed contact fingerprints and safe synthetic-seed hash migration (complete).
-  - 008d: Mapping-based CSV/Excel importer and validation report.
+  - 008d: CRM import, split into bounded sub-tasks:
+    - 008d1: CSV/Excel parsing, mapping validation, duplicate detection and dry-run report.
+    - 008d2: locked A1 approval and preview/apply API with transactional writes.
   - 008e: Human-confirmed, reversible customer merge/dedupe.
 - Unified communication timeline moves to Task 009, after normalized channel events exist; Task 009 must include the CRM timeline query.
 
 ## Acceptance criteria
 - Each sub-task owns its corresponding acceptance criteria and tests.
 - `can_send` is false for unknown/withdrawn consent (008a).
-- Importer handles duplicates and bad rows and produces a report; unknown consent maps to no marketing (008d).
+- Importer handles duplicates and bad rows and produces a report; unknown consent maps to no marketing (008d1).
+- Bulk import writes require locked A1 `crm.bulk_import` approval (008d2).
 - Merge requires approval and is reversible via audit (008e).
 
 ## Human gates / approvals
-- Customer merges and bulk imports need agent/owner approval.
+- Customer merges and bulk imports need agent/owner approval. Bulk import is locked at A1 as `crm.bulk_import`.
 
 ## Finish
 Tests first, `make check` green (+ `make eval` for LLM parts), docs updated, commit `task-008: ...`, write the report from AGENTS.md, then STOP.

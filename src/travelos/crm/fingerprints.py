@@ -23,9 +23,19 @@ class ContactFingerprinter:
         if not normalized_channel:
             raise ValueError("contact channel is required")
         normalized_value = normalize_contact_value(normalized_channel, value)
+        message = f"{normalized_channel}\0{normalized_value}".encode()
         root_key = self._provider.get_key()
         key = hmac.new(root_key, _KEY_CONTEXT, hashlib.sha256).digest()
-        message = f"{normalized_channel}\0{normalized_value}".encode()
+        return hmac.new(key, message, hashlib.sha256).hexdigest()
+
+    def keyed_digest(self, purpose: str, value: bytes) -> str:
+        """Return an opaque digest with a purpose-specific, domain-separated key."""
+
+        if not purpose.strip():
+            raise ValueError("digest purpose is required")
+        root_key = self._provider.get_key()
+        key = hmac.new(root_key, _KEY_CONTEXT, hashlib.sha256).digest()
+        message = f"{purpose}\0".encode() + value
         return hmac.new(key, message, hashlib.sha256).hexdigest()
 
 
