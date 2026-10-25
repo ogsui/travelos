@@ -55,7 +55,7 @@ adversarial set. Real data is never accepted in this directory.
 `tests/unit/test_crm_import_parser.py` covers CSV/XLSX parsing, configurable headers, malformed rows, normalized duplicate candidates, stable batch keys, file limits, and fail-closed consent mapping. `tests/integration/test_crm_import.py` checks preview creates no CRM records, the locked A1 approval gate, exact-batch and mapping binding, duplicate skipping, proof-backed consent, rollback on failure, and replay idempotence.
 
 ## CRM merge (tasks 008e1–008e2)
-`tests/integration/test_crm_merge_preview.py` checks tenant-scoped previews, locked A1 approval, exact snapshot matching, pending/edited/rejected/stale-state denial, transactional apply and replay safety, consent attachment preservation, primary-contact conflict handling, and merged-customer write/list behavior. Guarded undo tests belong to task 008e2b.
+`tests/integration/test_crm_merge_preview.py` checks tenant-scoped previews, locked A1 approval, exact snapshot matching, pending/edited/rejected/stale-state denial, transactional apply and replay safety, consent attachment preservation, primary-contact conflict handling, merged-customer write/list behavior, safe undo/replay, audit events and stale/cross-tenant undo rejection.
 
 
 ## Eval harness (task 018)

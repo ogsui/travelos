@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from travelos.approval.models import ApprovalRequest
+from travelos.core.models import AuditLog
 from travelos.crm.models import Contact, Customer, CustomerMergeHistory
 from travelos.security.totp import generate_code
 
@@ -216,6 +217,49 @@ def test_merge_apply_preserves_links_consents_and_primary_flags(
         source = db.get(Customer, UUID(source_id))
         assert source is not None and source.merged_into_customer_id == UUID(target_id)
 
+    other_tenant = make_user(
+        email="merge-undo-other-tenant@example.test",
+        role="agent",
+        tenant_id=UUID("00000000-0000-0000-0000-000000000004"),
+    )
+    cross_tenant_undo = auth_client.post(
+        f"/crm/merges/{approval_id}/undo",
+        headers=bearer(token_for(auth_client, other_tenant, login)),
+    )
+    assert cross_tenant_undo.status_code == 404
+
+    undone = auth_client.post(f"/crm/merges/{approval_id}/undo", headers=requester_headers)
+    assert undone.status_code == 200, undone.text
+    assert undone.json() == {
+        "approval_id": approval_id,
+        "restored_contacts": 1,
+        "restored_travellers": 1,
+        "already_undone": False,
+    }
+    repeated_undo = auth_client.post(f"/crm/merges/{approval_id}/undo", headers=requester_headers)
+    assert repeated_undo.status_code == 200
+    assert repeated_undo.json()["already_undone"] is True
+    with db_factory() as db:
+        restored_contact = db.get(Contact, UUID(source_contact["id"]))
+        restored_traveller = db.get(Traveller, UUID(source_traveller["id"]))
+        consent_row = db.get(Consent, UUID(consent.json()["id"]))
+        assert restored_contact is not None
+        assert restored_contact.customer_id == UUID(source_id) and restored_contact.is_primary
+        assert restored_traveller is not None and restored_traveller.customer_id == UUID(source_id)
+        assert consent_row is not None and consent_row.contact_id == restored_contact.id
+        assert db.get(Customer, UUID(source_id)).merged_into_customer_id is None
+        merge_events = set(
+            db.scalars(
+                select(AuditLog.action).where(
+                    AuditLog.subject_id == UUID(approval_id),
+                    AuditLog.action.in_(
+                        {"crm.customer_merge_applied", "crm.customer_merge_undone"}
+                    ),
+                )
+            )
+        )
+        assert merge_events == {"crm.customer_merge_applied", "crm.customer_merge_undone"}
+
 
 @pytest.mark.parametrize(
     ("decision", "edited", "stale"),
@@ -347,3 +391,70 @@ def test_merge_apply_rolls_back_links_history_and_marker_on_failure(
         assert db.get(Customer, UUID(source_id)).merged_into_customer_id is None
         assert db.get(Contact, UUID(contact["id"])).customer_id == UUID(source_id)
         assert db.scalar(select(CustomerMergeHistory)) is None
+
+
+def test_merge_undo_rejects_unsafe_new_target_primary(
+    auth_client: TestClient, make_user, login, db_factory
+) -> None:
+    requester = make_user(email="merge-undo-stale-agent@example.test", role="agent")
+    reviewer = make_user(
+        email="merge-undo-stale-owner@example.test", role="owner", mfa_enrolled=True
+    )
+    requester_headers = bearer(token_for(auth_client, requester, login))
+    reviewer_headers = bearer(token_for(auth_client, reviewer, login))
+
+    def customer(name: str) -> str:
+        return auth_client.post(
+            "/crm/customers",
+            json={"customer_type": "individual", "display_name": name},
+            headers=requester_headers,
+        ).json()["id"]
+
+    source_id, target_id = customer("Undo Source Synthetic"), customer("Undo Target Synthetic")
+    source_contact = auth_client.post(
+        f"/crm/customers/{source_id}/contacts",
+        json={"channel": "email", "value": "undo.source@example.test", "is_primary": True},
+        headers=requester_headers,
+    ).json()
+    auth_client.post(
+        f"/crm/customers/{target_id}/contacts",
+        json={"channel": "phone", "value": "+919000000007", "is_primary": True},
+        headers=requester_headers,
+    )
+    preview = auth_client.post(
+        "/crm/merges/preview",
+        json={"source_customer_id": source_id, "target_customer_id": target_id},
+        headers=requester_headers,
+    ).json()
+    approval_id = preview["approval_id"]
+    assert (
+        auth_client.post(
+            f"/approvals/{approval_id}/decision",
+            json={"decision": "approve"},
+            headers=reviewer_headers,
+        ).status_code
+        == 200
+    )
+    assert (
+        auth_client.post(f"/crm/merges/apply/{approval_id}", headers=requester_headers).status_code
+        == 200
+    )
+
+    added = auth_client.post(
+        f"/crm/customers/{target_id}/contacts",
+        json={"channel": "email", "value": "undo.new-primary@example.test", "is_primary": True},
+        headers=requester_headers,
+    )
+    assert added.status_code == 201
+    undo = auth_client.post(f"/crm/merges/{approval_id}/undo", headers=requester_headers)
+    assert undo.status_code == 409
+    missing = auth_client.post(
+        "/crm/merges/00000000-0000-0000-0000-0000000000ff/undo",
+        headers=requester_headers,
+    )
+    assert missing.status_code == 404
+    with db_factory() as db:
+        source = db.get(Customer, UUID(source_id))
+        linked_contact = db.get(Contact, UUID(source_contact["id"]))
+        assert source is not None and source.merged_into_customer_id == UUID(target_id)
+        assert linked_contact is not None and linked_contact.customer_id == UUID(target_id)

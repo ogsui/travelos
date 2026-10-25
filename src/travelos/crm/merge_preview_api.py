@@ -58,6 +58,13 @@ class CustomerMergeApplyOut(BaseModel):
     already_applied: bool
 
 
+class CustomerMergeUndoOut(BaseModel):
+    approval_id: UUID
+    restored_contacts: int
+    restored_travellers: int
+    already_undone: bool
+
+
 @router.post("/merges/preview", response_model=CustomerMergePreviewOut)
 def preview_customer_merge(
     payload: CustomerMergeIn,
@@ -126,3 +133,26 @@ def apply_customer_merge(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     db.commit()
     return CustomerMergeApplyOut.model_validate(result, from_attributes=True)
+
+
+@router.post("/merges/{approval_id}/undo", response_model=CustomerMergeUndoOut)
+def undo_customer_merge(
+    approval_id: UUID,
+    request: Request,
+    auth: Annotated[AuthContext, Depends(require(Permission.CRM_WRITE))],
+    db: Annotated[Session, Depends(get_db)],
+) -> CustomerMergeUndoOut:
+    try:
+        result = CustomerMergeService().undo(
+            db,
+            approval_id=approval_id,
+            actor=Actor.user(auth.user.id),
+            tenant_id=auth.user.tenant_id,
+            ip=client_ip(request),
+        )
+    except CRMRecordNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="customer_merge_not_found") from exc
+    except CRMValidationError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    db.commit()
+    return CustomerMergeUndoOut.model_validate(result, from_attributes=True)

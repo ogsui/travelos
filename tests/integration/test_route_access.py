@@ -39,6 +39,7 @@ EXPECTED_ROUTES = {
     ("POST", "/crm/imports/apply/{approval_id}"),
     ("POST", "/crm/merges/preview"),
     ("POST", "/crm/merges/apply/{approval_id}"),
+    ("POST", "/crm/merges/{approval_id}/undo"),
     ("POST", "/approvals"),
     ("GET", "/approvals"),
     ("GET", "/approvals/{request_id}"),
@@ -197,6 +198,12 @@ def test_crm_write_denies_admin(auth_client: TestClient, make_user, login, audit
         ).status_code
         == 403
     )
+    assert (
+        auth_client.post(
+            "/crm/merges/00000000-0000-0000-0000-0000000000aa/undo", headers=bearer(token)
+        ).status_code
+        == 403
+    )
     assert audit_rows("auth.permission_denied")
 
 
@@ -234,6 +241,7 @@ def test_crm_read_denies_accountant(auth_client: TestClient, make_user, login, a
         ("POST", "/crm/imports/apply/00000000-0000-0000-0000-0000000000aa"),
         ("POST", "/crm/merges/preview"),
         ("POST", "/crm/merges/apply/00000000-0000-0000-0000-0000000000aa"),
+        ("POST", "/crm/merges/00000000-0000-0000-0000-0000000000aa/undo"),
         ("GET", "/approvals"),
         ("POST", "/approvals"),
         ("GET", "/approvals/00000000-0000-0000-0000-0000000000aa"),
