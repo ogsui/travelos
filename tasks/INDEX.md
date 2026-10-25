@@ -24,6 +24,10 @@ Run in order. `/task NNN` in OpenCode. Review, commit, then start a fresh sessio
 | 008e2a | Apply approved merge and record reversible state | 2 | 008e2 |
 | 008e2b | Add guarded merge undo | 2 | 008e2a |
 | 009 | Channel adapters and unified CRM timeline | 2 | 004, 008e2b |
+| 009a | Channel foundation, mock inbound, CRM timeline | 2 | 009 |
+| 009b | Web-form inbound channel | 2 | 009a |
+| 009c | Email channel adapters | 2 | 009a |
+| 009d | WhatsApp channel adapter | 2 | 009a |
 | 010 | Inquiry parser & missing-info loop | 2 | 006, 007, 008, 009 |
 | 011 | Sales conversation agent | 2 | 005, 006, 010 |
 | 012 | Supplier adapters & price snapshots | 2 | 004, 007 |

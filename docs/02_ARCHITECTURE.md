@@ -55,7 +55,7 @@ Python 3.12, FastAPI (sync endpoints), SQLAlchemy 2 + Alembic, PostgreSQL 16, Re
 Layering inside each module: `domain/` (pure) -> `services/` -> `adapters/` -> `api/`. Domain never imports adapters.
 
 ## Core flow: inquiry to invoice
-1. Message arrives on a channel adapter -> normalized -> consent/identity matched -> `Inquiry` created (RECEIVED).
+1. Message arrives on a channel adapter -> normalized into tenant-scoped `Conversation` and encrypted `Message` records -> consent/identity matched -> `Inquiry` created (RECEIVED). CRM timeline reads normalized messages newest first.
 2. Acknowledgement from approved template (A3 once enabled).
 3. Parser builds a `Requirement`; missing fields -> NEEDS_INFO with clarifying questions (approval per matrix).
 4. Supplier searches (parallel, with timeouts) -> immutable snapshots. Competitor snapshots fetched if enabled.

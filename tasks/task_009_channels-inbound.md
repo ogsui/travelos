@@ -1,5 +1,8 @@
 # Task 009 — Channel adapters: WhatsApp, email, web form, mock
 
+Umbrella task: complete through the ordered slices in `task_009a`–`task_009d`.
+Do not implement the full scope in this file as one change.
+
 Phase 2 · Depends on: 004, 008d · Requirements: CH-1, CH-2, CH-4, CH-5, CRM-4
 
 ## Read first

@@ -28,6 +28,7 @@ BUSINESS_TABLES = {
     "autonomy_policies",
     "business_rule_versions",
     "consents",
+    "conversations",
     "contacts",
     "customer_merge_history",
     "customers",
@@ -35,6 +36,7 @@ BUSINESS_TABLES = {
     "human_tasks",
     "idempotency_keys",
     "llm_calls",
+    "messages",
     "outbox_events",
     "sessions",
     "suppression_list",
@@ -354,6 +356,14 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
             "ix_customer_merge_history_tenant_id_source_customer_id",
             "ix_customer_merge_history_tenant_id_target_customer_id",
         },
+        "conversations": {
+            "ix_conversations_tenant_customer",
+            "ix_conversations_tenant_contact",
+        },
+        "messages": {
+            "ix_messages_tenant_occurred",
+            "ix_messages_conversation_occurred",
+        },
         "consents": {"ix_consents_contact_purpose"},
         "idempotency_keys": {"ix_idempotency_keys_expires_at"},
         "llm_calls": {"ix_llm_calls_prompt", "ix_llm_calls_status", "ix_llm_calls_provider"},
@@ -379,6 +389,8 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
         "workflow_timers": {
             ("tenant_id", "name", "subject_type", "subject_id"),
         },
+        "conversations": {("tenant_id", "channel", "external_thread_id")},
+        "messages": {("tenant_id", "channel", "external_id")},
     }
     for table, expected in expected_unique.items():
         actual = {tuple(c["column_names"]) for c in inspector.get_unique_constraints(table)}

@@ -57,6 +57,9 @@ adversarial set. Real data is never accepted in this directory.
 ## CRM merge (tasks 008e1–008e2)
 `tests/integration/test_crm_merge_preview.py` checks tenant-scoped previews, locked A1 approval, exact snapshot matching, pending/edited/rejected/stale-state denial, transactional apply and replay safety, consent attachment preservation, primary-contact conflict handling, merged-customer write/list behavior, safe undo/replay, audit events and stale/cross-tenant undo rejection.
 
+## Channel foundation (task 009a)
+`tests/integration/test_channels_timeline.py` checks mock inbound idempotency, stable conversation threading, newest-first timeline order, CRM association filtering, body encryption at rest, audit redaction, and CRM timeline route permissions. `tests/integration/test_schema.py` covers the conversation/message schema, tenant-scoped uniqueness, and indexes.
+
 
 ## Eval harness (task 018)
 `make eval` runs: parser field accuracy; missing-info behaviour (asks vs guesses); package match vs gold; pricing vs golden cases; reply quality rubric (helpful, accurate, on-brand, no unsupported promises; LLM-judge + human sample); content accuracy (no unverified prices/claims); injection containment; latency/cost per task. Results stored per prompt version; CI fails on regression beyond tolerance.

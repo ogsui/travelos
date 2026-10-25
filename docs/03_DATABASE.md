@@ -29,8 +29,8 @@
 - `segments` (name, definition) · `customer_scores` (customer_id, rfm, lead_score, computed_at)
 
 ## Conversations & inquiries
-- `conversations` (customer_id, channel, external_thread_id, status, last_inbound_at) — drives the WhatsApp 24h window
-- `messages` (conversation_id, direction, channel, body(enc), media_refs, template_id, status, external_id UNIQUE per channel, approval_id)
+- `conversations` (customer_id, contact_id, channel, external_thread_id, status, last_inbound_at) — tenant/channel/thread unique; drives the WhatsApp 24h window
+- `messages` (conversation_id, direction, channel, body(enc), media_refs, template_id, status, external_id, occurred_at) — tenant/channel/external ID unique; normalized CRM timeline event
 - `inquiries` (customer_id, conversation_id, source_id, state, trip_type, urgency, assigned_user_id, lost_reason)
 - `requirements` (inquiry_id, version, data JSONB (schema-validated), field_confidence JSONB, source_spans JSONB, missing_fields)
 - `lead_sources` (channel, campaign_id, utm JSONB, referral_code, referrer_customer_id)
