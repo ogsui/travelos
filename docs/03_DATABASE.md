@@ -21,7 +21,7 @@
 
 ## CRM & consent
 - `customers` (type individual|family|corporate, display_name(enc), segment, owner_user_id, lifetime_value_paise, source_id)
-- `contacts` (customer_id, channel, value(enc), verified, primary, language)
+- `contacts` (customer_id, channel, value(enc), value_hash HMAC-SHA256, verified, primary, language). The digest is normalized and channel-scoped; it is used for dedupe and suppression matching and never contains the plaintext value.
 - `consents` (contact_id, channel, purpose marketing|transactional|reminders|reviews, status, source, proof_ref, granted_at, withdrawn_at)
 - `suppression_list` (channel, value_hash, reason, at) — STOP/unsubscribe/DND, global
 - `travellers` (customer_id, full_name_as_passport(enc), dob(enc), gender, passport_no(enc), passport_expiry(enc), nationality, is_minor, meal/seat prefs)
@@ -91,6 +91,7 @@ Unique: `messages(channel, external_id)`, `payments(gateway_ref)`, `invoices(ser
 - Every table inherits `BaseTable` (`core/db.py`): UUIDv7 `id` PK, `tenant_id` (default tenant, indexed), `created_at`/`updated_at` (`timestamptz`, DB-side `now()`). UUIDv7 is generated in Python (`core/ids.py`), not by the database.
 - Money columns follow the `<name>_paise BIGINT` + `<name>_currency CHAR(3)` pattern. `Money` (`core/money.py`) is the only money type in code; tests scan both the SQLAlchemy metadata and `information_schema` and fail on any float/numeric column.
 - Encrypted columns (`contacts.value`, `users.mfa_secret`, `travellers.full_name_as_passport`, `dob`, `passport_no`, `passport_expiry`) use `EncryptedString`/`EncryptedDate`, which store `enc:v1:<fernet-token>`. The key is a 32-byte URL-safe base64 value in `ENCRYPTION_KEY`, read through the `KeyProvider` interface (`security/encryption.py`). Ciphertext is masked in logs before any other redaction rule.
+- Contact fingerprints use HMAC-SHA256 with a domain-separated key derived from the same `KeyProvider` root key and a versioned context. The channel is included in the digest input. Rotate `ENCRYPTION_KEY` only through a coordinated data re-encryption and fingerprint rebuild; never change the root key without migrating both encrypted fields and contact/suppression digests.
 - `audit_log` is append-only twice: SQLAlchemy listeners raise `AppendOnlyError` in-process, and a PostgreSQL trigger (`travelos_block_append_only`) blocks UPDATE, DELETE and TRUNCATE for every client. Migration `0001` installs it; `downgrade()` removes both trigger and function.- Schema tests run against a real PostgreSQL 16 started by the `pgserver` dev dependency (no Docker, no external database). Migration tests get a throwaway database each and exercise upgrade, seeded downgrade and re-upgrade.
 
 ## Auth, sessions, audit & flags (task 003)

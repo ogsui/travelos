@@ -16,6 +16,7 @@
 - Argon2 password hashing, session hardening, CSRF protection, CORS allowlist, rate limiting, secure headers.
 - Webhooks: signature verification, replay protection (timestamp + idempotency), IP allowlists where offered.
 - Secrets in environment/secret manager; rotation procedure; secret scanning in CI; `.env` never committed or read by agents.
+- Contact dedupe and suppression use normalized, channel-scoped HMAC-SHA256 fingerprints. The fingerprint key is domain-separated from the field-encryption key; rotating the root key requires a coordinated migration of encrypted fields and all fingerprints. Plaintext contact values never enter digest columns or logs.
 - Dependency scanning and pinned versions; container images minimal and non-root.
 - Backups: encrypted, daily, restore-tested monthly. RPO/RTO written down.
 - Admin actions and exports audited; audit log tamper-resistant.

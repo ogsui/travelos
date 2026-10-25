@@ -8,7 +8,9 @@ import pytest
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from travelos.crm.fingerprints import ContactFingerprinter
 from travelos.crm.models import Consent, Contact, Customer, SuppressionEntry, Traveller
+from travelos.security.encryption import default_key_provider
 from travelos.synthetic import DEFAULT_SEED, generate_dataset
 from travelos.synthetic.loader import seed_crm
 
@@ -108,3 +110,30 @@ def test_seeded_pii_is_encrypted_at_rest_and_consent_is_consistent(db: Session) 
     withdrawn = list(db.execute(select(Consent).where(Consent.status == "withdrawn")).scalars())
     assert withdrawn
     assert all(entry.withdrawn_at is not None for entry in withdrawn)
+
+
+def test_seed_crm_uses_the_same_keyed_fingerprints_for_contacts_and_suppressions(
+    db: Session,
+) -> None:
+    dataset = generate_dataset(DEFAULT_SEED)
+    seed_crm(db, dataset)
+    fingerprinter = ContactFingerprinter(default_key_provider())
+
+    for customer in dataset.files["customers.jsonl"]:
+        for fixture_contact in customer["contacts"]:
+            contact = db.get(
+                Contact, stable_id(dataset.seed, "contact", str(fixture_contact["id"]))
+            )
+            assert contact is not None
+            expected = fingerprinter.fingerprint(
+                str(fixture_contact["channel"]), str(fixture_contact["value"])
+            )
+            assert contact.value_hash == expected
+            if fixture_contact["suppressed"]:
+                suppression = db.scalar(
+                    select(SuppressionEntry).where(
+                        SuppressionEntry.channel == str(fixture_contact["channel"]),
+                        SuppressionEntry.value_hash == expected,
+                    )
+                )
+                assert suppression is not None

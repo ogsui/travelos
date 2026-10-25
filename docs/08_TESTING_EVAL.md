@@ -48,6 +48,9 @@ adversarial set. Real data is never accepted in this directory.
 ## CRM records (task 008b)
 `tests/integration/test_crm_records.py` covers customer/contact/traveller API access, tenant isolation, validation, and encrypted customer names, contact values, dates of birth, and passport numbers. `test_schema.py` upgrades a pre-008b database with a synthetic customer row, verifies the online migration encrypts it, reads it through the ORM, and verifies downgrade restores the original value.
 
+## Contact fingerprints (task 008c)
+`tests/unit/test_contact_fingerprints.py` checks canonicalization, channel separation, secret separation, and that fingerprints do not contain plaintext. CRM writes and synthetic seeding share `ContactFingerprinter`; `tests/integration/test_synthetic_seed.py` checks matching keyed contact/suppression digests and idempotent re-seeding. `test_schema.py` verifies revision 0008 migrates a synthetic SHA-256 contact/suppression pair online and can restore the legacy digest on downgrade.
+
 
 ## Eval harness (task 018)
 `make eval` runs: parser field accuracy; missing-info behaviour (asks vs guesses); package match vs gold; pricing vs golden cases; reply quality rubric (helpful, accurate, on-brand, no unsupported promises; LLM-judge + human sample); content accuracy (no unverified prices/claims); injection containment; latency/cost per task. Results stored per prompt version; CI fails on regression beyond tolerance.

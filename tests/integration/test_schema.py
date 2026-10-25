@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
@@ -13,8 +14,9 @@ from sqlalchemy.orm import Session
 from travelos.core.db import build_engine
 from travelos.core.errors import AppendOnlyError
 from travelos.core.models import AuditLog, User
-from travelos.crm.models import Consent, Contact, Customer, Traveller
-from travelos.security.encryption import ENCRYPTED_PREFIX
+from travelos.crm.fingerprints import ContactFingerprinter
+from travelos.crm.models import Consent, Contact, Customer, SuppressionEntry, Traveller
+from travelos.security.encryption import ENCRYPTED_PREFIX, default_key_provider
 from travelos.workflow.models import WorkflowTimer
 
 pytestmark = pytest.mark.integration
@@ -136,6 +138,72 @@ def test_customer_display_names_are_encrypted_during_migration(database_factory,
         remaining = set(inspect(engine).get_table_names())
         assert remaining & BUSINESS_TABLES == set()
         assert remaining <= {"alembic_version"}
+    finally:
+        engine.dispose()
+
+
+def test_contact_fingerprints_migrate_legacy_hashes(database_factory, migrate) -> None:
+    url = database_factory()
+    migrate.upgrade(url, "0007")
+    engine = build_engine(url)
+    customer_id = uuid4()
+    contact_id = uuid4()
+    channel = "email"
+    value = "Migration.Contact@example.test"
+    legacy_hash = hashlib.sha256(value.encode("utf-8")).hexdigest()
+    try:
+        from travelos.core.db import build_session_factory
+
+        with build_session_factory(engine)() as session:
+            customer = Customer(
+                id=customer_id,
+                customer_type="individual",
+                display_name="Migration Synthetic",
+            )
+            session.add(customer)
+            session.flush()
+            session.add(
+                Contact(
+                    id=contact_id,
+                    customer_id=customer_id,
+                    channel=channel,
+                    value=value,
+                    value_hash=legacy_hash,
+                )
+            )
+            session.add(
+                SuppressionEntry(
+                    channel=channel,
+                    value_hash=legacy_hash,
+                    reason="synthetic_migration",
+                )
+            )
+            session.commit()
+
+        migrate.upgrade(url)
+        expected = ContactFingerprinter(default_key_provider()).fingerprint(channel, value)
+        with engine.connect() as connection:
+            contact_hash = connection.execute(
+                text("SELECT value_hash FROM contacts WHERE id = :id"), {"id": contact_id}
+            ).scalar_one()
+            suppression_hash = connection.execute(
+                text("SELECT value_hash FROM suppression_list WHERE channel = :channel"),
+                {"channel": channel},
+            ).scalar_one()
+        assert contact_hash == expected
+        assert suppression_hash == expected
+        assert value not in contact_hash
+    finally:
+        engine.dispose()
+
+    migrate.downgrade(url, "0007")
+    engine = build_engine(url)
+    try:
+        with engine.connect() as connection:
+            restored_hash = connection.execute(
+                text("SELECT value_hash FROM contacts WHERE id = :id"), {"id": contact_id}
+            ).scalar_one()
+        assert restored_hash == legacy_hash
     finally:
         engine.dispose()
 

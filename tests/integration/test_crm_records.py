@@ -81,15 +81,18 @@ def test_customer_contact_and_traveller_crud_encrypts_pii(
             text("SELECT display_name FROM customers WHERE id = :id"), {"id": customer_id}
         ).scalar_one()
         encrypted_contact = db.execute(
-            text("SELECT value FROM contacts WHERE customer_id = :id"), {"id": customer_id}
-        ).scalar_one()
+            text("SELECT value, value_hash FROM contacts WHERE customer_id = :id"),
+            {"id": customer_id},
+        ).one()
         encrypted_traveller = db.execute(
             text("SELECT passport_no, dob FROM travellers WHERE customer_id = :id"),
             {"id": customer_id},
         ).one()
 
     assert encrypted_name.startswith("enc:v1:")
-    assert encrypted_contact.startswith("enc:v1:")
+    assert encrypted_contact.value.startswith("enc:v1:")
+    assert len(encrypted_contact.value_hash) == 64
+    assert "ravi.synthetic@example.test" not in encrypted_contact.value_hash
     assert encrypted_traveller.passport_no.startswith("enc:v1:")
     assert encrypted_traveller.dob.startswith("enc:v1:")
     assert "Ravi Synthetic" not in encrypted_name
@@ -144,4 +147,24 @@ def test_customer_type_validation_is_closed(auth_client: TestClient, make_user, 
         headers=bearer(token_for(auth_client, user, login)),
     )
 
+    assert response.status_code == 422
+
+
+def test_phone_channel_rejects_non_phone_contact_value(
+    auth_client: TestClient, make_user, login
+) -> None:
+    user = make_user(email="records-invalid-phone@example.test", role="agent")
+    headers = bearer(token_for(auth_client, user, login))
+    customer = auth_client.post(
+        "/crm/customers",
+        json={"customer_type": "individual", "display_name": "Phone Synthetic"},
+        headers=headers,
+    )
+    assert customer.status_code == 201, customer.text
+
+    response = auth_client.post(
+        f"/crm/customers/{customer.json()['id']}/contacts",
+        json={"channel": "whatsapp", "value": "not-a-phone"},
+        headers=headers,
+    )
     assert response.status_code == 422

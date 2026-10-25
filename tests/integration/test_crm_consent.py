@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from uuid import UUID
 
 import pytest
@@ -13,7 +12,9 @@ from sqlalchemy.orm import Session
 from travelos.core.audit import Actor
 from travelos.core.models import AuditLog
 from travelos.crm.consent import ConsentService
+from travelos.crm.fingerprints import ContactFingerprinter
 from travelos.crm.models import Contact, Customer, SuppressionEntry
+from travelos.security.encryption import default_key_provider
 
 pytestmark = pytest.mark.integration
 
@@ -27,7 +28,7 @@ def make_contact(db: Session, *, channel: str = "email") -> Contact:
         customer_id=customer.id,
         channel=channel,
         value=value,
-        value_hash=hashlib.sha256(value.encode()).hexdigest(),
+        value_hash=ContactFingerprinter(default_key_provider()).fingerprint(channel, value),
         is_primary=True,
     )
     db.add(contact)

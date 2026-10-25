@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from travelos.core.audit import Actor, AuditWriter
 from travelos.core.db import DEFAULT_TENANT_ID
 from travelos.crm.errors import CRMRecordNotFoundError, CRMValidationError
+from travelos.crm.fingerprints import ContactFingerprinter
 from travelos.crm.models import Contact, Customer, Traveller
 
 _CUSTOMER_TYPES = frozenset({"individual", "family", "corporate"})
@@ -121,6 +122,10 @@ class CRMService:
             raise CRMValidationError("contact value must contain 1 to 320 characters")
         if language is not None and len(language) > 10:
             raise CRMValidationError("language tag is too long")
+        try:
+            value_hash = ContactFingerprinter().fingerprint(channel, normalized_value)
+        except ValueError as exc:
+            raise CRMValidationError(str(exc)) from exc
 
         if is_primary:
             self._clear_primary_contact(
@@ -131,7 +136,7 @@ class CRMService:
             customer_id=customer_id,
             channel=channel,
             value=normalized_value,
-            value_hash=None,
+            value_hash=value_hash,
             verified=verified,
             is_primary=is_primary,
             language=language.strip().lower() if language and language.strip() else None,

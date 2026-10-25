@@ -24,6 +24,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from travelos.crm.fingerprints import ContactFingerprinter
 from travelos.crm.models import Consent, Contact, Customer, SuppressionEntry, Traveller
 from travelos.synthetic.generator import Record, SyntheticDataset
 
@@ -112,17 +113,6 @@ def _parse_date(value: str | None) -> date | None:
     return date.fromisoformat(value) if value is not None else None
 
 
-def _hash_value(value: str) -> str:
-    """Placeholder dedupe hash.
-
-    Task 008 owns the real consent/dedupe convention (HMAC keyed by the
-    application secret). The seed only needs a deterministic 64-character value
-    that never exposes the plaintext contact.
-    """
-
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
 def seed_crm(db: Session, dataset: SyntheticDataset) -> SeedCrmReport:
     """Insert the CRM rows for ``dataset``; return counts of new rows only."""
 
@@ -137,6 +127,7 @@ def seed_crm(db: Session, dataset: SyntheticDataset) -> SeedCrmReport:
 
     customer_ids: dict[str, UUID] = {}
     contact_ids_by_customer: dict[str, dict[str, UUID]] = {}
+    fingerprinter = ContactFingerprinter()
 
     # Pass 1: customers.
     for record in customers:
@@ -176,7 +167,9 @@ def seed_crm(db: Session, dataset: SyntheticDataset) -> SeedCrmReport:
                         customer_id=customer_id,
                         channel=str(contact["channel"]),
                         value=str(contact["value"]),
-                        value_hash=_hash_value(str(contact["value"])),
+                        value_hash=fingerprinter.fingerprint(
+                            str(contact["channel"]), str(contact["value"])
+                        ),
                         verified=bool(contact["verified"]),
                         is_primary=bool(contact["primary"]),
                         language=str(contact["language"]),
@@ -185,7 +178,9 @@ def seed_crm(db: Session, dataset: SyntheticDataset) -> SeedCrmReport:
                 counts["contacts"] += 1
 
             if bool(contact["suppressed"]):
-                value_hash = _hash_value(str(contact["value"]))
+                value_hash = fingerprinter.fingerprint(
+                    str(contact["channel"]), str(contact["value"])
+                )
                 suppression_id = _stable_id(
                     dataset.seed, "suppression", f"{contact['channel']}:{contact['value']}"
                 )
