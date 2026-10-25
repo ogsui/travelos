@@ -25,6 +25,9 @@ EXPECTED_ROUTES = {
     ("POST", "/auth/mfa/enroll"),
     ("GET", "/admin/flags"),
     ("PUT", "/admin/flags/{key}"),
+    ("POST", "/crm/consents"),
+    ("POST", "/crm/consents/{consent_id}/withdraw"),
+    ("GET", "/crm/contacts/{contact_id}/can-send"),
     ("POST", "/approvals"),
     ("GET", "/approvals"),
     ("GET", "/approvals/{request_id}"),
@@ -153,6 +156,37 @@ def test_flag_write_allows_owner(permissive_client: TestClient, make_user, login
     assert response.json()["source"] == "database"
 
 
+def test_crm_write_denies_admin(auth_client: TestClient, make_user, login, audit_rows) -> None:
+    token = login_as(login, auth_client, make_user, "admin")
+
+    response = auth_client.post(
+        "/crm/consents",
+        json={
+            "contact_id": "00000000-0000-0000-0000-000000000001",
+            "channel": "email",
+            "purpose": "marketing",
+            "source": "web_form",
+        },
+        headers=bearer(token),
+    )
+
+    assert response.status_code == 403
+    assert audit_rows("auth.permission_denied")
+
+
+def test_crm_read_denies_accountant(auth_client: TestClient, make_user, login, audit_rows) -> None:
+    token = login_as(login, auth_client, make_user, "accountant")
+
+    response = auth_client.get(
+        "/crm/contacts/00000000-0000-0000-0000-000000000001/can-send",
+        params={"channel": "email", "purpose": "marketing"},
+        headers=bearer(token),
+    )
+
+    assert response.status_code == 403
+    assert audit_rows("auth.permission_denied")
+
+
 @pytest.mark.parametrize(
     ("method", "path"),
     [
@@ -160,6 +194,9 @@ def test_flag_write_allows_owner(permissive_client: TestClient, make_user, login
         ("POST", "/auth/logout"),
         ("GET", "/admin/flags"),
         ("PUT", "/admin/flags/email"),
+        ("POST", "/crm/consents"),
+        ("POST", "/crm/consents/00000000-0000-0000-0000-0000000000aa/withdraw"),
+        ("GET", "/crm/contacts/00000000-0000-0000-0000-0000000000aa/can-send"),
         ("GET", "/approvals"),
         ("POST", "/approvals"),
         ("GET", "/approvals/00000000-0000-0000-0000-0000000000aa"),

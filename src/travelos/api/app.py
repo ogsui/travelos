@@ -18,6 +18,7 @@ from travelos.api.routes.admin import router as admin_router
 from travelos.api.routes.approvals import autonomy_router
 from travelos.api.routes.approvals import router as approvals_router
 from travelos.api.routes.auth import router as auth_router
+from travelos.api.routes.crm import router as crm_router
 from travelos.approval.service import ApprovalService
 from travelos.core.audit import AuditWriter
 from travelos.core.config import Mode, Settings, get_settings
@@ -87,6 +88,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(admin_router)
     app.include_router(approvals_router)
+    app.include_router(crm_router)
     app.include_router(autonomy_router)
 
     @app.exception_handler(HTTPException)
