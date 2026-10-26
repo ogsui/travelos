@@ -124,6 +124,53 @@ synthetic inquiry rows.
 
 The first slice already exists: `make eval` runs `tests/eval/test_llm_injection.py` and `tests/eval/test_adversarial_dataset.py` against the adversarial fixtures. Both are database-free so they can run in CI before PostgreSQL starts; the DB-backed adversarial test in `tests/integration/test_llm_gateway.py` proves escalation and `llm_calls` rows as well.
 
+## Inquiry parser eval (task 010d)
+The hand-checked gold set is `data/eval/inquiry_gold.jsonl`: 32 synthetic
+messages, two per synthetic category, with a full gold requirement, the verbatim
+evidence quote(s) for every asserted field, and notes on corrections and
+ambiguity. Gold keeps names and cities exactly as the customer wrote them
+(misspellings included), converts budgets to integer paise and marks only what
+the message states. `data/eval/inquiry_injection.jsonl` holds compromised parser
+payloads that must be rejected (extra action key, invalid trip type, fabricated
+quote, silent assumption).
+
+Two modes, and the result file always says which one produced the number:
+
+```sh
+python -m travelos.inquiry.eval --mode fake        # CI plumbing, no model
+python -m travelos.inquiry.eval --mode provider    # owner-configured model + database
+```
+
+`fake` echoes the gold answer back through the real schema, evidence and scoring
+code. It proves the harness works but is **not** an accuracy measurement: its
+result records `gate.status = "not_measured"` and `passed = null`. `provider`
+calls the real gateway, writes `llm_calls`/audit rows, and is the only mode that
+can pass or fail the gate. It refuses to run when the configured provider chain
+still contains `fake`. The result is one JSON file per prompt version:
+`data/eval/results/inquiry_parser_v<version>.json`; a fake run never overwrites a
+provider result. A prompt version with no result file is not a pass.
+
+The file reports required-field accuracy (per trip-type required field, including
+correctly-absent fields), extraction accuracy over every asserted gold field,
+required-field precision/recall, missing-info agreement with `inquiry.rules`,
+confidence calibration (Brier score plus 0.0-0.5/0.5-0.7/0.7-0.9/0.9-1.0 buckets),
+silent-assumption cases and injection containment, per field and in total.
+Provider mode fails the gate below 95% required-field accuracy, on any silent
+assumption, parse failure or injection that is not contained.
+
+CI runs the database-free tests in `tests/eval/test_inquiry_parser_eval.py`
+(fixture traceability, category coverage, fake-mode plumbing, scorer miss/extra
+reporting, injection containment, a committed result per prompt version, and the
+no-downgrade rule). `tests/integration/test_inquiry_eval_provider.py` drives
+`run_provider_eval` through the real gateway and database with a scripted
+provider to prove provider-mode plumbing and `llm_calls` provenance; it is not a
+quality measurement.
+
+Current committed result: `data/eval/results/inquiry_parser_v1.json` is a **fake
+mode** run (`gate.status = "not_measured"`). A real baseline is blocked until the
+owner supplies a non-fake provider, model and budget (see `docs/BACKLOG.md`).
+
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

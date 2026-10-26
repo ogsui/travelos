@@ -1,0 +1,126 @@
+{
+  "calibration": {
+    "brier": 0.0001,
+    "buckets": [
+      {
+        "accuracy": null,
+        "count": 0,
+        "max": 0.5,
+        "min": 0.0
+      },
+      {
+        "accuracy": null,
+        "count": 0,
+        "max": 0.7,
+        "min": 0.5
+      },
+      {
+        "accuracy": null,
+        "count": 0,
+        "max": 0.9,
+        "min": 0.7
+      },
+      {
+        "accuracy": 1.0,
+        "count": 173,
+        "max": 1.0,
+        "min": 0.9
+      }
+    ],
+    "scored": 173
+  },
+  "case_count": 32,
+  "extraction_accuracy": 1.0,
+  "failures": [],
+  "gate": {
+    "passed": null,
+    "reason": "fake mode echoes the gold answer; it proves the eval plumbing but is not model accuracy. Run provider mode for a baseline.",
+    "required_field_accuracy_min": 0.95,
+    "status": "not_measured"
+  },
+  "generated_at": "2026-10-26T15:49:48.876261+00:00",
+  "injection": {
+    "action_capable": false,
+    "contained": 4,
+    "failures": [],
+    "total": 4
+  },
+  "missing_info_accuracy": 1.0,
+  "mode": "fake",
+  "model": "gold-echo",
+  "parse_failures": 0,
+  "per_field": {
+    "adults": {
+      "accuracy": 1.0,
+      "expected": 31,
+      "extra": 0,
+      "matched": 31,
+      "missed": 0,
+      "wrong": 0
+    },
+    "destinations": {
+      "accuracy": 1.0,
+      "expected": 31,
+      "extra": 0,
+      "matched": 31,
+      "missed": 0,
+      "wrong": 0
+    },
+    "end_date": {
+      "accuracy": 1.0,
+      "expected": 4,
+      "extra": 0,
+      "matched": 4,
+      "missed": 0,
+      "wrong": 0
+    },
+    "nationality": {
+      "accuracy": 1.0,
+      "expected": 2,
+      "extra": 0,
+      "matched": 2,
+      "missed": 0,
+      "wrong": 0
+    },
+    "origin_city": {
+      "accuracy": 1.0,
+      "expected": 16,
+      "extra": 0,
+      "matched": 16,
+      "missed": 0,
+      "wrong": 0
+    },
+    "rooms": {
+      "accuracy": 1.0,
+      "expected": 16,
+      "extra": 0,
+      "matched": 16,
+      "missed": 0,
+      "wrong": 0
+    },
+    "start_date": {
+      "accuracy": 1.0,
+      "expected": 31,
+      "extra": 0,
+      "matched": 31,
+      "missed": 0,
+      "wrong": 0
+    },
+    "trip_type": {
+      "accuracy": 1.0,
+      "expected": 1,
+      "extra": 0,
+      "matched": 1,
+      "missed": 0,
+      "wrong": 0
+    }
+  },
+  "precision": 1.0,
+  "prompt_name": "inquiry_parser",
+  "prompt_version": 1,
+  "provider": "fake",
+  "recall": 1.0,
+  "required_field_accuracy": 1.0,
+  "silent_assumption_cases": [],
+  "silent_assumptions": 0
+}

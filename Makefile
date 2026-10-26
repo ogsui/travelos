@@ -4,7 +4,7 @@ COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down build logs seed test test-unit test-integration lint format typecheck check eval web-install web-check
+.PHONY: help up down build logs seed test test-unit test-integration lint format typecheck check eval eval-inquiry web-install web-check
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -48,6 +48,9 @@ check: lint typecheck test ## The gate: lint + typecheck + tests
 
 eval: ## Run LLM/quality evaluations (task 018 expands this)
 	$(PYTHON) -m pytest tests/eval -m eval
+
+eval-inquiry: ## Run the inquiry-parser eval (fake plumbing; add MODE/args for provider)
+	$(PYTHON) -m travelos.inquiry.eval --mode fake
 
 web-install: ## Install dashboard dependencies
 	cd web/dashboard && npm install

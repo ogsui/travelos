@@ -103,7 +103,7 @@ class InquiryParser:
 
 
 def _outcome(result: LLMResult, message: str) -> ParseOutcome:
-    parsed = _parse_payload(result.parsed, message)
+    parsed = parse_model_output(result.parsed, message)
     return ParseOutcome(
         parsed=parsed,
         prompt_name=result.prompt_name,
@@ -114,7 +114,11 @@ def _outcome(result: LLMResult, message: str) -> ParseOutcome:
     )
 
 
-def _parse_payload(payload: object, message: str) -> ParsedRequirement:
+def parse_model_output(payload: object, message: str) -> ParsedRequirement:
+    """Validate one model payload against the schema, evidence and quote rules.
+
+    Public so the eval can score recorded/fake payloads without a gateway call.
+    """
     if payload is None:
         raise RequirementParseError("parser returned no structured output")
     document = _as_mapping(payload, "parser output")
@@ -219,7 +223,7 @@ def _resolve_sources(
     for field, quotes in sources.items():
         resolved: list[SourceSpan] = []
         for quote in quotes:
-            span = _locate(quote, message)
+            span = locate_quote(quote, message)
             if span is None:
                 raise RequirementParseError(
                     f"source quote for {field} does not occur in the message: {quote[:80]!r}"
@@ -229,7 +233,7 @@ def _resolve_sources(
     return spans
 
 
-def _locate(quote: str, message: str) -> SourceSpan | None:
+def locate_quote(quote: str, message: str) -> SourceSpan | None:
     """Find a verbatim quote, tolerating case and whitespace differences."""
 
     text = quote.strip()

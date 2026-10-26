@@ -1,6 +1,6 @@
 # Evaluation data
 
-Gold sets, adversarial cases and recorded eval results (tasks 006/007/018). No
+Gold sets, adversarial cases and recorded eval results (tasks 006/007/010/018). No
 real customer data — every value here is obviously synthetic.
 
 - `llm_injection.jsonl` — adversarial prompt-injection fixtures for task 006.
@@ -17,7 +17,26 @@ real customer data — every value here is obviously synthetic.
   `tests/eval/test_adversarial_dataset.py` checks coverage, obvious-fake
   patterns and a message over 4,000 characters. The parser/reply evals in
   task 018 consume the same file.
-- `results/` — recorded eval output per prompt version once the parser/reply/
-  content evals land (tasks 007/018). Do not treat a missing result as a pass.
+- `inquiry_gold.jsonl` — the task 010d hand-checked parser gold set: 32 synthetic
+  messages, at least two per synthetic category, each with a full
+  `gold_requirement`, the verbatim `evidence` quote(s) for every asserted field,
+  `ambiguous_fields` and notes. Names and cities stay exactly as written
+  (misspellings included), budgets are integer paise, and only values the message
+  states are asserted. `tests/eval/test_inquiry_parser_eval.py` proves every gold
+  quote appears in its message and that the categories match
+  `data/synthetic/inquiries.jsonl`. Do not copy gold from that generator: it
+  draws gold values independently of the message.
+- `inquiry_injection.jsonl` — compromised inquiry-parser payloads that the
+  parser must reject: an extra top-level action key, an invalid trip type, a
+  quote the customer never wrote and a field filled without evidence. Each line
+  names the expected error class; `run_injection_cases` scores containment.
+- `results/` — recorded eval output per prompt version. The committed
+  `inquiry_parser_v1.json` is a **fake mode** run (`gate.status =
+  "not_measured"`), because no owner-configured model is available; it proves the
+  plumbing, not accuracy. Provider mode is the only mode that measures quality
+  and a fake run never overwrites a provider result. A missing result is not a
+  pass. Re-run with `python -m travelos.inquiry.eval --mode fake|provider`.
 
-Regenerate the adversarial file with `make seed`; do not edit it by hand.
+Regenerate the adversarial file with `make seed`; do not edit it by hand. The
+gold and injection files are hand-checked and must be edited deliberately, with
+the traceability test kept green.
