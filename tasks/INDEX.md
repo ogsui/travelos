@@ -29,6 +29,10 @@ Run in order. `/task NNN` in OpenCode. Review, commit, then start a fresh sessio
 | 009c | Email channel adapters | 2 | 009a |
 | 009d | WhatsApp channel adapter | 2 | 009a |
 | 010 | Inquiry parser & missing-info loop | 2 | 006, 007, 008, 009 |
+| 010a | Requirement schema and required-field rules | 2 | 002, 007 |
+| 010b | Inquiry parser prompt v1 and gateway adapter | 2 | 006, 010a |
+| 010c | Inquiry persistence, matching and NEEDS_INFO loop | 2 | 004, 005, 008, 009, 010b |
+| 010d | Hand-checked parser gold set and eval runner | 2 | 010a, 010b, 010c |
 | 011 | Sales conversation agent | 2 | 005, 006, 010 |
 | 012 | Supplier adapters & price snapshots | 2 | 004, 007 |
 | 013 | Itinerary & package builder | 2 | 010, 012 |

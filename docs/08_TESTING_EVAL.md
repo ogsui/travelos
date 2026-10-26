@@ -64,6 +64,23 @@ adversarial set. Real data is never accepted in this directory.
 `tests/unit/test_web_form_rate_limit.py` covers deterministic limiter boundaries and expiry. `tests/integration/test_web_form.py` checks public route validation, neutral honeypot behavior, idempotent replay, rate limiting, encrypted message storage, privacy-safe audits, and that unverified identity claims never attach a public message to an existing CRM customer/contact.
 
 
+## Inquiry requirements (task 010a)
+`tests/unit/test_inquiry_requirement.py` pins the Pydantic `Requirement` model to
+`data/schemas/inquiry.schema.json` `$defs.requirement`: the field sets and
+required lists must match exactly, dates and enums round-trip, floats/strings
+cannot become money, end-before-start is rejected, and neutral defaults are not
+treated as customer assertions. `ParsedRequirement` tests prove an asserted field
+without a source span is reported as a silent assumption, spans must fall inside
+the message, and confidence/span keys must be real fields. A Hypothesis test
+validates generated requirements against the committed schema.
+
+`tests/unit/test_inquiry_rules.py` covers the required/recommended policy per
+trip type: blocking gaps come first, an unknown trip type asks only for the type,
+visa asks for nationality and traveller documents, hotel requires a checkout
+date, infants trigger an age question, missing flexibility asks whether dates are
+confirmed, and ambiguity is surfaced even when a value exists. Budget is
+recommended-only, so its absence never blocks a quote.
+
 ## Eval harness (task 018)
 `make eval` runs: parser field accuracy; missing-info behaviour (asks vs guesses); package match vs gold; pricing vs golden cases; reply quality rubric (helpful, accurate, on-brand, no unsupported promises; LLM-judge + human sample); content accuracy (no unverified prices/claims); injection containment; latency/cost per task. Results stored per prompt version; CI fails on regression beyond tolerance.
 

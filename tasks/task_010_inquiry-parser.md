@@ -2,6 +2,8 @@
 
 Phase 2 · Depends on: 006, 007, 008, 009 · Requirements: INQ-1, INQ-2, INQ-3, INQ-4
 
+Slices: 010a (schema + rules), 010b (prompt + parser), 010c (persistence + matching + NEEDS_INFO), 010d (hand-checked gold + eval).
+
 ## Read first
 - AGENTS.md
 - docs/01_REQUIREMENTS.md
