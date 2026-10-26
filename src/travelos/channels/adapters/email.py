@@ -338,9 +338,7 @@ class EmailChannelAdapter:
         """Send an email, enforcing all safety gates."""
         # Gate 1: Mode gate
         if self._mode in (Mode.TEST, Mode.SHADOW):
-            raise EmailSendBlockedError(
-                f"outbound email is blocked in {self._mode.value} mode"
-            )
+            raise EmailSendBlockedError(f"outbound email is blocked in {self._mode.value} mode")
 
         # Gate 2: Kill switch gate
         if not self._kill_switch_enabled:
@@ -357,9 +355,7 @@ class EmailChannelAdapter:
                 purpose=purpose,
                 tenant_id=tenant_id,
             ):
-                raise EmailSendBlockedError(
-                    "contact does not have consent for email sends"
-                )
+                raise EmailSendBlockedError("contact does not have consent for email sends")
 
         # Gate 4: Approval check
         self._check_approval(
@@ -436,9 +432,7 @@ class EmailChannelAdapter:
             try:
                 spec = get_spec(action_type)
                 if spec.default_level in (AutonomyLevel.A0, AutonomyLevel.A1):
-                    raise EmailSendBlockedError(
-                        f"approval is required for action: {action_type}"
-                    )
+                    raise EmailSendBlockedError(f"approval is required for action: {action_type}")
             except UnknownActionError:
                 raise EmailSendBlockedError(f"unknown action type: {action_type}") from None
 
