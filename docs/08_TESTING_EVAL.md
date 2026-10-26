@@ -170,6 +170,20 @@ Current committed result: `data/eval/results/inquiry_parser_v1.json` is a **fake
 mode** run (`gate.status = "not_measured"`). A real baseline is blocked until the
 owner supplies a non-fake provider, model and budget (see `docs/BACKLOG.md`).
 
+## Sales conversation drafting (task 011a)
+`tests/unit/test_conversation_templates.py` pins template selection (exact
+language, English fallback, no machine translation), duplicate-key and bad-field
+rejection, and the fact that the shipped acknowledgement is still unapproved.
+`tests/unit/test_conversation_guard.py` covers every claim kind (money,
+availability, policy, discount, hard promise), right-kind vs wrong-kind sources,
+claim spans, empty bodies and malformed source maps.
+`tests/integration/test_conversation_replies.py` proves the service stores an
+encrypted `message_drafts` row and a pending `message.instant_ack` /
+`message.sales_reply` approval, never writes an outbound `messages` row, keeps
+the body out of the approval payload, refuses unapproved templates, closed
+inquiries, missing conversations and other tenants, and writes nothing when the
+claim guard blocks a reply.
+
 
 ## Suggested gates (tune with real data)
 | Gate | Criterion |

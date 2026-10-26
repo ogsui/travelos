@@ -435,6 +435,7 @@ class InquiryService:
             approval_id=submission.approval.id if submission.approval is not None else None,
             channel=resolved_channel,
             body=body,
+            kind="clarification",
             question_codes=list(codes),
             status="draft",
             created_by=requested_by,

@@ -146,6 +146,10 @@ class MessageDraft(BaseTable):
     )
     channel: Mapped[str] = mapped_column(String(20), nullable=False)
     body: Mapped[str] = mapped_column(EncryptedString(), nullable=False)
+    kind: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="clarification", server_default="clarification"
+    )
+    template_key: Mapped[str | None] = mapped_column(String(80))
     question_codes: Mapped[list[str]] = mapped_column(
         JSON, nullable=False, default=list, server_default=text("'[]'")
     )
@@ -160,6 +164,7 @@ class MessageDraft(BaseTable):
     __table_args__ = (
         CheckConstraint(f"channel IN ({_CHANNELS})", name="channel"),
         CheckConstraint("status IN ('draft', 'approved', 'rejected', 'sent')", name="status"),
+        CheckConstraint("kind IN ('clarification', 'acknowledgement', 'sales_reply')", name="kind"),
         CheckConstraint("status <> 'sent' OR sent_at IS NOT NULL", name="sent_needs_timestamp"),
         Index("ix_message_drafts_tenant_inquiry", "tenant_id", "inquiry_id"),
         Index("ix_message_drafts_approval", "approval_id"),
