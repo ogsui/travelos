@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "requirement.json",
+  "title": "Inquiry parser output: requirement plus evidence",
+  "type": "object",
+  "properties": {
+    "requirement": { "$ref": "#/$defs/requirement" },
+    "confidence": {
+      "type": "object",
+      "properties": {
+        "trip_type": { "type": "number", "minimum": 0, "maximum": 1 },
+        "origin_city": { "type": "number", "minimum": 0, "maximum": 1 },
+        "destinations": { "type": "number", "minimum": 0, "maximum": 1 },
+        "start_date": { "type": "number", "minimum": 0, "maximum": 1 },
+        "end_date": { "type": "number", "minimum": 0, "maximum": 1 },
+        "date_flexibility_days": { "type": "number", "minimum": 0, "maximum": 1 },
+        "adults": { "type": "number", "minimum": 0, "maximum": 1 },
+        "children_ages": { "type": "number", "minimum": 0, "maximum": 1 },
+        "infants": { "type": "number", "minimum": 0, "maximum": 1 },
+        "rooms": { "type": "number", "minimum": 0, "maximum": 1 },
+        "budget_paise": { "type": "number", "minimum": 0, "maximum": 1 },
+        "budget_currency": { "type": "number", "minimum": 0, "maximum": 1 },
+        "preferences": { "type": "number", "minimum": 0, "maximum": 1 },
+        "nationality": { "type": "number", "minimum": 0, "maximum": 1 },
+        "special_needs": { "type": "number", "minimum": 0, "maximum": 1 },
+        "urgency": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "sources": {
+      "type": "object",
+      "properties": {
+        "trip_type": { "$ref": "#/$defs/quotes" },
+        "origin_city": { "$ref": "#/$defs/quotes" },
+        "destinations": { "$ref": "#/$defs/quotes" },
+        "start_date": { "$ref": "#/$defs/quotes" },
+        "end_date": { "$ref": "#/$defs/quotes" },
+        "date_flexibility_days": { "$ref": "#/$defs/quotes" },
+        "adults": { "$ref": "#/$defs/quotes" },
+        "children_ages": { "$ref": "#/$defs/quotes" },
+        "infants": { "$ref": "#/$defs/quotes" },
+        "rooms": { "$ref": "#/$defs/quotes" },
+        "budget_paise": { "$ref": "#/$defs/quotes" },
+        "budget_currency": { "$ref": "#/$defs/quotes" },
+        "preferences": { "$ref": "#/$defs/quotes" },
+        "nationality": { "$ref": "#/$defs/quotes" },
+        "special_needs": { "$ref": "#/$defs/quotes" },
+        "urgency": { "$ref": "#/$defs/quotes" }
+      },
+      "additionalProperties": false
+    },
+    "ambiguous_fields": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "string",
+        "enum": [
+          "trip_type",
+          "origin_city",
+          "destinations",
+          "start_date",
+          "end_date",
+          "date_flexibility_days",
+          "adults",
+          "children_ages",
+          "infants",
+          "rooms",
+          "budget_paise",
+          "budget_currency",
+          "preferences",
+          "nationality",
+          "special_needs",
+          "urgency"
+        ]
+      }
+    }
+  },
+  "required": ["requirement", "confidence", "sources", "ambiguous_fields"],
+  "additionalProperties": false,
+  "$defs": {
+    "quotes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+    },
+    "requirement": {
+      "type": "object",
+      "properties": {
+        "trip_type": {
+          "type": "string",
+          "enum": ["flight", "package", "hotel", "visa", "corporate", "group", "unknown"]
+        },
+        "origin_city": { "type": ["string", "null"] },
+        "destinations": {
+          "type": "array",
+          "maxItems": 5,
+          "items": { "type": "string", "minLength": 2 }
+        },
+        "start_date": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "end_date": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "date_flexibility_days": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 60
+        },
+        "adults": { "type": ["integer", "null"], "minimum": 1, "maximum": 60 },
+        "children_ages": {
+          "type": "array",
+          "maxItems": 8,
+          "items": { "type": "integer", "minimum": 0, "maximum": 17 }
+        },
+        "infants": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "rooms": { "type": ["integer", "null"], "minimum": 1, "maximum": 30 },
+        "budget_paise": { "type": ["integer", "null"], "minimum": 0 },
+        "budget_currency": { "type": "string", "enum": ["INR"] },
+        "preferences": { "type": "array", "items": { "type": "string" } },
+        "nationality": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" },
+        "special_needs": { "type": "array", "items": { "type": "string" } },
+        "urgency": { "type": "string", "enum": ["low", "normal", "high"] }
+      },
+      "required": [
+        "trip_type",
+        "origin_city",
+        "destinations",
+        "start_date",
+        "end_date",
+        "date_flexibility_days",
+        "adults",
+        "children_ages",
+        "infants",
+        "rooms",
+        "budget_paise",
+        "budget_currency",
+        "preferences",
+        "nationality",
+        "special_needs",
+        "urgency"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "inquiry_input.json",
+  "title": "Input contract for the inquiry parser prompt",
+  "type": "object",
+  "properties": {
+    "message": { "type": "string", "minLength": 1 },
+    "channel": { "type": "string", "minLength": 1 },
+    "language_hint": {
+      "type": "string",
+      "enum": ["en", "hi", "hinglish", "unknown"]
+    },
+    "current_date": {
+      "type": "string",
+      "description": "ISO date supplied by code for resolving relative dates."
+    }
+  },
+  "required": ["message", "channel", "language_hint", "current_date"],
+  "additionalProperties": false
+}

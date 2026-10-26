@@ -81,6 +81,22 @@ date, infants trigger an age question, missing flexibility asks whether dates ar
 confirmed, and ambiguity is surfaced even when a value exists. Budget is
 recommended-only, so its absence never blocks a quote.
 
+## Inquiry parser (task 010b)
+`prompts/inquiry_parser.md` v1 is the extraction prompt for English, Hindi and
+Hinglish; `prompts/schemas/requirement.json` declares the output (requirement,
+per-field confidence, evidence quotes and ambiguous fields).
+`tests/unit/test_inquiry_prompt.py` checks the prompt version, data class,
+trusted `current_date`, schema parity with the committed requirement definition,
+that evidence keys cover exactly the requirement fields, that action/invented
+fields are rejected, and that untrusted text is delimited and sanitised before it
+reaches the model. `tests/unit/test_inquiry_parser.py` covers quote-to-span
+resolution (case/whitespace tolerant), missing confidence, missing evidence
+(`SilentAssumptionError`), quotes for empty fields, invalid values and unexpected
+top-level output. `tests/integration/test_inquiry_parser_gateway.py` runs the real
+gateway with the fake provider: provenance and audit rows, injection text staying
+inside the DATA block, a schema violation repaired once and then escalated, and
+invented evidence rejected without altering the requirement.
+
 ## Eval harness (task 018)
 `make eval` runs: parser field accuracy; missing-info behaviour (asks vs guesses); package match vs gold; pricing vs golden cases; reply quality rubric (helpful, accurate, on-brand, no unsupported promises; LLM-judge + human sample); content accuracy (no unverified prices/claims); injection containment; latency/cost per task. Results stored per prompt version; CI fails on regression beyond tolerance.
 

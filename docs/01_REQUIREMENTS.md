@@ -27,7 +27,7 @@ IDs are stable and referenced by tasks. Default autonomy levels (A0-A3) are defi
 ## INQ — Inquiry understanding
 - INQ-1 Parse English/Hindi/Hinglish messages into a validated Requirement (trip type, route(s), dates and flexibility, passengers by age, rooms, budget, preferences, nationality for visa, special needs, urgency).
 - INQ-2 Detect missing/ambiguous required fields per trip type; ask the customer or flag staff; never assume silently. The deterministic policy is `inquiry/rules.py`: flight needs origin, destinations, start date and adults; package/hotel/group also need rooms; hotel needs a checkout date; visa needs nationality. Budget is requested but never blocking (quotes are built in tiers), and an ambiguous field is reported even when a value is present.
-- INQ-3 Per-field confidence and source span; show both next to the original message in the review screen.
+- INQ-3 Per-field confidence and source span; show both next to the original message in the review screen. Spans are computed from verbatim quotes the parser returns, so PII redaction before the provider call cannot shift an offset.
 - INQ-4 Match to an existing customer; merge duplicates only after locked A1 human approval, with a reversible audit trail.
 
 ## SALES — Conversation
