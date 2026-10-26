@@ -44,7 +44,9 @@ logging.getLogger("pgserver").setLevel(logging.CRITICAL)
 def alembic_config(url: str) -> Config:
     config = Config(str(ALEMBIC_INI))
     config.set_main_option("script_location", str(MIGRATIONS_DIR))
-    config.set_main_option("sqlalchemy.url", url)
+    # ConfigParser reads "%" as interpolation syntax and pgserver's Unix-socket
+    # URL is percent-encoded (host=%2Ftmp%2F...), so escape it for Alembic.
+    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     # Keep pytest's logging configuration intact.
     config.attributes["configure_logger"] = False
     return config
