@@ -5,7 +5,7 @@
 - Money: `<name>_paise BIGINT` + `currency CHAR(3)`. No float/numeric money columns (a test scans the models).
 - Enums stored as text with CHECK constraints. JSONB only for raw provider payloads and immutable snapshots.
 - (enc) = field-level encrypted. PII never appears in logs or LLM prompts unredacted.
-- Append-only tables (`audit_log`, `llm_calls`, `price_snapshots`) have UPDATE/DELETE revoked or trigger-blocked. `outbox_events` is deliberately mutable: `status`, `attempts` and `available_at` move through the delivery state machine.
+- Append-only tables (`audit_log`, `llm_calls`, `price_snapshots`) have UPDATE/DELETE revoked or trigger-blocked. `requirements` is append-only at the ORM layer (see task 010c notes) until a DB trigger can coexist with the tenant-purge path. `outbox_events` is deliberately mutable: `status`, `attempts` and `available_at` move through the delivery state machine.
 - Every external write carries an `idempotency_key` (unique).
 
 ## Identity & platform
@@ -31,8 +31,9 @@
 ## Conversations & inquiries
 - `conversations` (customer_id, contact_id, channel, external_thread_id, status, last_inbound_at) — tenant/channel/thread unique; drives the WhatsApp 24h window
 - `messages` (conversation_id, direction, channel, body(enc), media_refs, template_id, status, external_id, occurred_at) — tenant/channel/external ID unique; normalized CRM timeline event
-- `inquiries` (customer_id, conversation_id, source_id, state, trip_type, urgency, assigned_user_id, lost_reason)
-- `requirements` (inquiry_id, version, data JSONB (schema-validated), field_confidence JSONB, source_spans JSONB, missing_fields)
+- `inquiries` (customer_id, conversation_id, source_id, state, trip_type, urgency, assigned_user_id, lost_reason, duplicate_of_inquiry_id, duplicate_evidence JSONB)
+- `requirements` (inquiry_id, version, data JSONB (schema-validated), field_confidence JSONB, source_spans JSONB, missing_fields JSONB, prompt_name, prompt_version, provider, model, llm_call_id)
+- `message_drafts` (inquiry_id, conversation_id, contact_id, approval_id UNIQUE, channel, body(enc), question_codes, status draft|approved|rejected|sent, created_by, sent_at) — customer-facing text that is waiting for a human; no sender exists yet
 - `lead_sources` (channel, campaign_id, utm JSONB, referral_code, referrer_customer_id)
 
 ## Suppliers, market, pricing
@@ -157,3 +158,11 @@ Unique: `messages(channel, external_id)`, `payments(gateway_ref)`, `invoices(ser
 - `/crm/merges/preview` creates a locked A1 `crm.customer_merge` approval tied to a keyed digest of both customers, linked contacts, contact consent rows and travellers. The preview shows source/target names and before/after counts to the authorized CRM operator and flags same-channel overlapping contact fingerprints without exposing contact values.
 - `/crm/merges/apply/{approval_id}` locks and rechecks the exact approval snapshot before moving source contacts and travellers. Consent remains bound to its contact. The source is marked with `merged_into_customer_id` and excluded from active customer lists; linked-record creation against it is blocked.
 - `customer_merge_history` stores only IDs, original/current customer links, primary-contact flags, state and timestamps. `/crm/merges/{approval_id}/undo` locks the history and affected records, refuses stale relationships or a new untracked target primary, then restores the recorded links. Apply/undo and their audit records share their request transaction.
+
+## Inquiries, requirements & clarifying drafts (task 010c)
+- `inquiries` is the one row a workflow owns. `state` follows the `inquiry` machine (`RECEIVED -> PARSED -> NEEDS_INFO -> ...`); `trip_type`, `urgency` and `duplicate_*` are denormalized for the operator queue. Migration `0011` adds it with CHECK constraints and tenant/state, tenant/customer and duplicate indexes.
+- `requirements` stores one immutable version per parse. `data` is the validated `Requirement` JSON; `field_confidence`, `source_spans` and `missing_fields` preserve the parser's evidence and the deterministic gap list. `prompt_name`, `prompt_version`, `provider`, `model` and `llm_call_id` keep eval results attributable to a prompt version. A re-parse appends a version; it never edits an earlier one. The append-only guard is an ORM listener (`before_update`/`before_delete`) so a future tenant-purge job can still remove rows in one controlled path. `uq_requirements_version` prevents two versions with the same number.
+- Blocking gaps move the inquiry to `NEEDS_INFO`. `assert_ready_for_search` fails closed with `InquiryNeedsInfoError` while any required field is missing; recommended gaps (budget, origin for packages, end date for flights) never block.
+- Duplicate detection is deterministic and explainable: a candidate within 30 days that shares the conversation, the customer or a keyed contact fingerprint is recorded in `duplicate_evidence` and linked by `duplicate_of_inquiry_id`. A `human_tasks` row (`inquiry.duplicate_suspected`) asks an agent to decide. Nothing is merged; customer merges remain a locked A1 action.
+- `message_drafts` stores the clarifying message a human may send: `body` is encrypted, `question_codes` is the reviewed gap vocabulary, and `status` starts as `draft`. `approval_id` is unique, so one approval owns one draft. A CHECK requires `sent_at` when status is `sent`; this task never sets either, and no channel sender is wired.
+- `/inquiries` reads require `crm:read`; create, parse and clarify require `crm:write`. All queries are tenant-scoped. Parse derives message, channel and language from the newest inbound message in the inquiry's conversation unless a specific `message_id` is supplied.

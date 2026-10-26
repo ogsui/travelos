@@ -29,6 +29,9 @@ from travelos.core.config import Mode, Settings, get_settings
 from travelos.core.db import build_engine, build_session_factory
 from travelos.core.features import DatabaseFlagSource, FeatureFlagService
 from travelos.core.logging import configure_logging, get_request_id
+from travelos.inquiry.api import router as inquiries_router
+from travelos.inquiry.parser import InquiryParser
+from travelos.llm.factory import build_gateway
 from travelos.security.sessions import AuthSessionService
 
 logger = logging.getLogger("travelos.api")
@@ -80,6 +83,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.feature_flags = FeatureFlagService(DatabaseFlagSource(session_factory), resolved)
     app.state.approvals = ApprovalService.from_settings(resolved)
+    app.state.inquiry_parser = InquiryParser(build_gateway(resolved, audit=app.state.audit))
     app.state.web_form_rate_limiter = (
         InMemoryWindowLimiter()
         if resolved.mode is Mode.TEST
@@ -104,6 +108,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(channels_router)
     app.include_router(web_form_router)
     app.include_router(whatsapp_router)
+    app.include_router(inquiries_router)
     app.include_router(autonomy_router)
 
     @app.exception_handler(HTTPException)

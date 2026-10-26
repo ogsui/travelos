@@ -44,6 +44,11 @@ EXPECTED_ROUTES = {
     ("POST", "/channels/web-form"),
     ("GET", "/channels/whatsapp/webhook"),
     ("POST", "/channels/whatsapp/webhook"),
+    ("POST", "/inquiries"),
+    ("GET", "/inquiries"),
+    ("GET", "/inquiries/{inquiry_id}"),
+    ("POST", "/inquiries/{inquiry_id}/parse"),
+    ("POST", "/inquiries/{inquiry_id}/clarify"),
     ("POST", "/approvals"),
     ("GET", "/approvals"),
     ("GET", "/approvals/{request_id}"),
@@ -237,6 +242,58 @@ def test_crm_read_denies_accountant(auth_client: TestClient, make_user, login, a
     assert audit_rows("auth.permission_denied")
 
 
+@pytest.mark.parametrize("role", ["owner", "agent", "admin"])
+def test_inquiry_read_allows_crm_readers(
+    auth_client: TestClient, make_user, login, role: str
+) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    assert auth_client.get("/inquiries", headers=bearer(token)).status_code == 200
+
+
+def test_inquiry_read_denies_accountant(
+    auth_client: TestClient, make_user, login, audit_rows
+) -> None:
+    token = login_as(login, auth_client, make_user, "accountant")
+
+    response = auth_client.get("/inquiries", headers=bearer(token))
+
+    assert response.status_code == 403
+    assert audit_rows("auth.permission_denied")
+
+
+@pytest.mark.parametrize("role", ["owner", "agent"])
+def test_inquiry_write_allows_crm_writers(
+    auth_client: TestClient, make_user, login, role: str
+) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    response = auth_client.post(
+        "/inquiries",
+        json={"conversation_id": "00000000-0000-0000-0000-0000000000aa"},
+        headers=bearer(token),
+    )
+
+    # The permission check passed; the synthetic conversation does not exist.
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize("role", ["admin", "accountant"])
+def test_inquiry_write_denies_roles_without_crm_write(
+    auth_client: TestClient, make_user, login, audit_rows, role: str
+) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    response = auth_client.post(
+        "/inquiries",
+        json={"conversation_id": "00000000-0000-0000-0000-0000000000aa"},
+        headers=bearer(token),
+    )
+
+    assert response.status_code == 403
+    assert audit_rows("auth.permission_denied")
+
+
 @pytest.mark.parametrize(
     ("method", "path"),
     [
@@ -260,6 +317,11 @@ def test_crm_read_denies_accountant(auth_client: TestClient, make_user, login, a
         ("POST", "/crm/merges/preview"),
         ("POST", "/crm/merges/apply/00000000-0000-0000-0000-0000000000aa"),
         ("POST", "/crm/merges/00000000-0000-0000-0000-0000000000aa/undo"),
+        ("GET", "/inquiries"),
+        ("POST", "/inquiries"),
+        ("GET", "/inquiries/00000000-0000-0000-0000-0000000000aa"),
+        ("POST", "/inquiries/00000000-0000-0000-0000-0000000000aa/parse"),
+        ("POST", "/inquiries/00000000-0000-0000-0000-0000000000aa/clarify"),
         ("GET", "/approvals"),
         ("POST", "/approvals"),
         ("GET", "/approvals/00000000-0000-0000-0000-0000000000aa"),

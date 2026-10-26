@@ -11,11 +11,13 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
+from travelos.channels.models import Conversation
 from travelos.core.db import build_engine
 from travelos.core.errors import AppendOnlyError
 from travelos.core.models import AuditLog, User
 from travelos.crm.fingerprints import ContactFingerprinter
 from travelos.crm.models import Consent, Contact, Customer, Traveller
+from travelos.inquiry.models import Inquiry, MessageDraft, RequirementRow
 from travelos.security.encryption import ENCRYPTED_PREFIX, default_key_provider
 from travelos.workflow.models import WorkflowTimer
 
@@ -35,9 +37,12 @@ BUSINESS_TABLES = {
     "feature_flags",
     "human_tasks",
     "idempotency_keys",
+    "inquiries",
     "llm_calls",
+    "message_drafts",
     "messages",
     "outbox_events",
+    "requirements",
     "sessions",
     "suppression_list",
     "travellers",
@@ -253,6 +258,37 @@ def test_downgrade_and_reupgrade_on_seeded_database(database_factory, migrate) -
                 passport_expiry=date(2030, 1, 1),
             )
         )
+        conversation = Conversation(
+            customer_id=customer.id,
+            contact_id=contact.id,
+            channel="whatsapp",
+            external_thread_id="synthetic-thread",
+        )
+        session.add(conversation)
+        session.flush()
+        inquiry = Inquiry(customer_id=customer.id, conversation_id=conversation.id)
+        session.add(inquiry)
+        session.flush()
+        session.add(
+            RequirementRow(
+                inquiry_id=inquiry.id,
+                version=1,
+                data={"trip_type": "unknown"},
+                field_confidence={},
+                source_spans={},
+                missing_fields=[],
+            )
+        )
+        session.add(
+            MessageDraft(
+                inquiry_id=inquiry.id,
+                conversation_id=conversation.id,
+                contact_id=contact.id,
+                channel="whatsapp",
+                body="Synthetic draft awaiting review.",
+                question_codes=["trip_type"],
+            )
+        )
         session.add(AuditLog(actor_type="system", action="seed.test"))
         session.commit()
 
@@ -260,7 +296,16 @@ def test_downgrade_and_reupgrade_on_seeded_database(database_factory, migrate) -
         migrate.downgrade(url)
         migrate.upgrade(url)
         with engine.connect() as connection:
-            for table in ("users", "customers", "contacts", "consents", "travellers"):
+            for table in (
+                "users",
+                "customers",
+                "contacts",
+                "consents",
+                "travellers",
+                "inquiries",
+                "requirements",
+                "message_drafts",
+            ):
                 count = connection.execute(text(f"SELECT count(*) FROM {table}")).scalar_one()
                 assert count == 0, f"{table} still has rows after downgrade"
     finally:
@@ -364,6 +409,17 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
             "ix_messages_tenant_occurred",
             "ix_messages_conversation_occurred",
         },
+        "inquiries": {
+            "ix_inquiries_tenant_state",
+            "ix_inquiries_tenant_customer",
+            "ix_inquiries_conversation",
+            "ix_inquiries_duplicate_of",
+        },
+        "requirements": {"ix_requirements_inquiry_created"},
+        "message_drafts": {
+            "ix_message_drafts_tenant_inquiry",
+            "ix_message_drafts_approval",
+        },
         "consents": {"ix_consents_contact_purpose"},
         "idempotency_keys": {"ix_idempotency_keys_expires_at"},
         "llm_calls": {"ix_llm_calls_prompt", "ix_llm_calls_status", "ix_llm_calls_provider"},
@@ -391,6 +447,8 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
         },
         "conversations": {("tenant_id", "channel", "external_thread_id")},
         "messages": {("tenant_id", "channel", "external_id")},
+        "requirements": {("tenant_id", "inquiry_id", "version")},
+        "message_drafts": {("approval_id",)},
     }
     for table, expected in expected_unique.items():
         actual = {tuple(c["column_names"]) for c in inspector.get_unique_constraints(table)}
@@ -538,6 +596,103 @@ def test_workflow_timer_rejects_an_unknown_status(db: Session) -> None:
     with pytest.raises(IntegrityError, match="ck_workflow_timers_status"):
         db.flush()
     db.rollback()
+
+
+def test_inquiry_rejects_an_unknown_state_and_trip_type(db: Session) -> None:
+    db.add(Inquiry(state="SOMEDAY"))
+
+    with pytest.raises(IntegrityError, match="ck_inquiries_state"):
+        db.flush()
+    db.rollback()
+
+    db.add(Inquiry(trip_type="telepathy"))
+
+    with pytest.raises(IntegrityError, match="ck_inquiries_trip_type"):
+        db.flush()
+    db.rollback()
+
+
+def test_requirement_version_is_unique_per_inquiry(db: Session) -> None:
+    inquiry = Inquiry()
+    db.add(inquiry)
+    db.flush()
+    db.add(RequirementRow(inquiry_id=inquiry.id, version=1, data={"trip_type": "unknown"}))
+    db.flush()
+    db.add(RequirementRow(inquiry_id=inquiry.id, version=1, data={"trip_type": "unknown"}))
+
+    with pytest.raises(IntegrityError, match="uq_requirements_version"):
+        db.flush()
+    db.rollback()
+
+
+def test_requirement_update_is_append_only_through_the_orm(db: Session) -> None:
+    inquiry = Inquiry()
+    db.add(inquiry)
+    db.flush()
+    row = RequirementRow(inquiry_id=inquiry.id, version=1, data={"trip_type": "unknown"})
+    db.add(row)
+    db.flush()
+
+    row.data = {"tampered": True}
+    with pytest.raises(AppendOnlyError, match="append-only"):
+        db.flush()
+
+
+def test_requirement_delete_is_append_only_through_the_orm(db: Session) -> None:
+    inquiry = Inquiry()
+    db.add(inquiry)
+    db.flush()
+    row = RequirementRow(inquiry_id=inquiry.id, version=1, data={"trip_type": "unknown"})
+    db.add(row)
+    db.flush()
+
+    db.delete(row)
+    with pytest.raises(AppendOnlyError, match="append-only"):
+        db.flush()
+
+
+def test_message_draft_cannot_be_marked_sent_without_a_timestamp(db: Session) -> None:
+    inquiry = Inquiry()
+    db.add(inquiry)
+    db.flush()
+    db.add(
+        MessageDraft(
+            inquiry_id=inquiry.id,
+            channel="email",
+            body="Synthetic draft.",
+            status="sent",
+            sent_at=None,
+        )
+    )
+
+    with pytest.raises(IntegrityError, match="ck_message_drafts_sent_needs_timestamp"):
+        db.flush()
+    db.rollback()
+
+
+def test_message_draft_body_is_encrypted_at_rest(db: Session) -> None:
+    inquiry = Inquiry()
+    db.add(inquiry)
+    db.flush()
+    draft = MessageDraft(
+        inquiry_id=inquiry.id,
+        channel="email",
+        body="Synthetic question about dates.",
+        question_codes=["start_date"],
+    )
+    db.add(draft)
+    db.flush()
+
+    raw = db.execute(
+        text("SELECT body FROM message_drafts WHERE id = :id"), {"id": draft.id}
+    ).scalar_one()
+
+    assert raw.startswith(ENCRYPTED_PREFIX)
+    assert "Synthetic question" not in raw
+    db.expire_all()
+    loaded = db.get(MessageDraft, draft.id)
+    assert loaded is not None
+    assert loaded.body == "Synthetic question about dates."
 
 
 # --------------------------------------------------------------------------

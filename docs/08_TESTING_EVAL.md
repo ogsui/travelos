@@ -97,6 +97,28 @@ gateway with the fake provider: provenance and audit rows, injection text stayin
 inside the DATA block, a schema violation repaired once and then escalated, and
 invented evidence rejected without altering the requirement.
 
+## Inquiry persistence & NEEDS_INFO loop (task 010c)
+`tests/unit/test_inquiry_questions.py` pins the deterministic clarifying
+wording: each gap field has fixed text, ambiguous gaps ask for confirmation, the
+body is numbered in gap order, repeated fields appear once, and an empty gap list
+is rejected. `tests/integration/test_inquiry_service.py` drives the service against
+PostgreSQL: create/read scoping, newest-inbound selection, versioned parses with
+prompt provenance, `RECEIVED -> NEEDS_INFO -> PARSED` transitions, a closed
+inquiry refusing a parse, a field asserted without evidence leaving no
+requirement row, requirement update/delete rejection, deterministic duplicate
+flags (same conversation, customer, keyed contact fingerprint; closed and
+45-day-old rows excluded) that only open a human task, matching by keyed
+fingerprint while ignoring merged customers, and clarifying drafts that create an
+A1 approval plus an encrypted `message_drafts` row and zero outbound messages.
+`tests/integration/test_inquiry_api.py` covers the five routes end to end
+(create/list/get/parse/clarify), the approval link, encrypted draft body, tenant
+isolation, missing-requirement errors and 404/409/422 mappings.
+`tests/integration/test_schema.py` adds the new tables to the shared column,
+index and unique contracts, checks the state/trip-type CHECKs, the
+`sent_at`-required CHECK, version uniqueness, ORM append-only rejection and
+draft-body encryption at rest, and rehearses upgrade/downgrade/re-upgrade with
+synthetic inquiry rows.
+
 ## Eval harness (task 018)
 `make eval` runs: parser field accuracy; missing-info behaviour (asks vs guesses); package match vs gold; pricing vs golden cases; reply quality rubric (helpful, accurate, on-brand, no unsupported promises; LLM-judge + human sample); content accuracy (no unverified prices/claims); injection containment; latency/cost per task. Results stored per prompt version; CI fails on regression beyond tolerance.
 
