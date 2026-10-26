@@ -87,3 +87,21 @@ Meta Business verification + WhatsApp Business number and templates · Meta deve
 - Inbound: `parse_raw_email` decodes MIME/multipart headers, extracts `Message-ID` for deduplication, threads replies via `In-Reply-To`/`References`, parses dates to timezone-aware UTC, and stores bodies encrypted at rest through `ChannelService`.
 - Outbound: enforces mode gates (blocked in `test` and `shadow` modes), the `email` kill switch, recipient consent/suppression (`ConsentService.can_send`), and approval policies (checking `ApprovalRequest.status == 'approved'` or requiring approval for A1 actions like `message.sales_reply`).
 - Transports: `MailpitTransport` provides local development SMTP relay on port 1025 without external network access; `SMTPTransport` provides standard authenticated TLS/STARTTLS delivery for production; `NullTransport` silently discards for tests.
+
+## WhatsApp channel adapter (task 009d)
+- `WhatsAppChannelAdapter` implements the same channel contract as email: inbound events land in `conversations`/`messages` (bodies encrypted, Meta `wamid` as the dedupe key) and outbound sends pass the mode, kill-switch, consent and approval gates.
+- The subscription handshake is `GET /channels/whatsapp/webhook` (`hub.mode=subscribe`, constant-time token comparison, challenge echoed as plain text; `403` otherwise). The inbound endpoint is `POST /channels/whatsapp/webhook` and checks Meta's `X-Hub-Signature-256` HMAC over the raw body before parsing.
+- Credentials are owner-supplied (`WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_API_BASE_URL`). If the verify token or app secret is unset, `test` mode still accepts fixtures, while `shadow` and `live` answer `503 whatsapp_webhook_not_configured` — an unverified webhook is never trusted outside test mode.
+- Parsing covers text, image, document, video, audio/voice, interactive button/list replies, quick-reply buttons and location. Media is stored as reference strings (`whatsapp:<type>:<media-id>[:<filename>]`), never downloaded or inlined into prompts. Delivery-status batches produce no messages. Malformed JSON gives `422`; unknown or partial entries are skipped so one bad item does not lose the rest of a retried batch.
+- Outbound gates, in order: `test`/`shadow` block all sends, `KILL_SWITCHES__WHATSAPP` must be ON, consent/suppression is checked for the contact and purpose, A0/A1 actions need an approved `ApprovalRequest`, and messages outside the 24-hour customer-care window must use an approved template. An unapproved template is rejected even inside the window.
+- Transports: `MockWhatsAppTransport` records sends for tests; `CloudAPIWhatsAppTransport` posts to the Graph API `/{phone_number_id}/messages` endpoint, strips the recipient to digits and uses an owner-confirmed template language. Tests never call it.
+- Delivery status is `unavailable` until Meta status webhooks are persisted; the adapter has no send path wired into the orchestrator yet (tasks 016/023).
+- Contract tests use recorded Cloud API shapes in `tests/fixtures/whatsapp/webhook_events.json`.
+
+### TODO(owner) — Meta / WhatsApp account manager
+1. WABA ID, `phone_number_id` and a system-user access token for the agency number, plus whether the test number or the production number is in scope for the pilot.
+2. Exact approved template names, categories and language codes for the six intended messages (acknowledgement, quote ready, payment reminder, booking confirmed, travel documents, disruption alert). `APPROVED_TEMPLATES` in the adapter is a placeholder until this list arrives.
+3. Has Meta business verification completed, and what is the messaging tier/limit for our number?
+4. Where should inbound media be stored (bucket, retention, who can read it), and may attachments be downloaded automatically or only on operator action?
+5. Which authorized operator completes Meta OTP/MFA or review challenges, and what is the escalation path if the number is restricted?
+

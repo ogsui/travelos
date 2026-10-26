@@ -23,6 +23,7 @@ from travelos.approval.service import ApprovalService
 from travelos.channels.api import router as channels_router
 from travelos.channels.web_form import InMemoryWindowLimiter, RedisWindowLimiter
 from travelos.channels.web_form_api import router as web_form_router
+from travelos.channels.whatsapp_api import router as whatsapp_router
 from travelos.core.audit import AuditWriter
 from travelos.core.config import Mode, Settings, get_settings
 from travelos.core.db import build_engine, build_session_factory
@@ -102,6 +103,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(crm_router)
     app.include_router(channels_router)
     app.include_router(web_form_router)
+    app.include_router(whatsapp_router)
     app.include_router(autonomy_router)
 
     @app.exception_handler(HTTPException)

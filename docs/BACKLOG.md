@@ -27,3 +27,6 @@ Unrelated findings discovered while working on a task go here (one line each: wh
 - Prompt eval sets (other than the injection fixtures) and their gold data do not exist yet; tasks 007/018 add parser, reply and content evals. The prompt registry already records an `eval_set` pointer, but nothing enforces that a prompt version has a passing eval before it is used.
 - Real-provider rate limits, context windows and max-output limits are unknown; confirm them so `LLM_MAX_ATTEMPTS`, backoff and prompt `max_tokens` stay within the account's limits.
 - The dev response cache is process-local and disabled in live. If local evals become slow, consider a shared Redis cache in test only; keep it out of the live safety path.
+- Inbound STOP/unsubscribe keywords are not yet turned into consent withdrawal or suppression: task 009's umbrella mentions it, but it needs contact matching plus a `ConsentService` suppression API (consent.py only reads `SuppressionEntry`). Add it before any outbound campaign (task 026).
+- WhatsApp delivery-status webhooks (`statuses[]`: sent/delivered/read/failed) are parsed as no-ops and `status()` returns `unavailable`. Persist them and surface failures when support is built (task 023).
+

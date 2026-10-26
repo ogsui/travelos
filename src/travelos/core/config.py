@@ -199,6 +199,14 @@ class Settings(BaseSettings):
     llm_anthropic_output_paise_per_million: int = Field(default=0, ge=0)
     llm_pricing_currency: str = "INR"
 
+    # WhatsApp Business Cloud API (task 009d).
+    # Credentials come from the owner's Meta Business app.
+    whatsapp_verify_token: SecretStr | None = None
+    whatsapp_app_secret: SecretStr | None = None
+    whatsapp_phone_number_id: str | None = None
+    whatsapp_access_token: SecretStr | None = None
+    whatsapp_api_base_url: str = "https://graph.facebook.com/v18.0"
+
     @model_validator(mode="after")
     def _escalation_before_expiry(self) -> Settings:
         if self.approval_escalation_minutes >= self.approval_ttl_minutes:

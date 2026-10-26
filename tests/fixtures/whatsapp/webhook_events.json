@@ -1,0 +1,354 @@
+{
+  "source": "Recorded Meta WhatsApp Business Cloud API webhook shapes. All identifiers, numbers and bodies are synthetic.",
+  "events": [
+    {
+      "name": "text_enquiry",
+      "payload": {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "WABA_SYNTHETIC_001",
+            "changes": [
+              {
+                "field": "messages",
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15550000001",
+                    "phone_number_id": "SYNTH_PHONE_ID"
+                  },
+                  "contacts": [
+                    { "wa_id": "919000000101", "profile": { "name": "Synthetic Asha" } }
+                  ],
+                  "messages": [
+                    {
+                      "from": "919000000101",
+                      "id": "wamid.SYNTH.TEXT.1",
+                      "timestamp": "1730000000",
+                      "type": "text",
+                      "text": {
+                        "body": "Looking for a 5-day Kerala family holiday in December"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "external_id": "wamid.SYNTH.TEXT.1",
+          "thread": "919000000101",
+          "body": "Looking for a 5-day Kerala family holiday in December",
+          "media_refs": [],
+          "occurred_at": "2024-10-27T03:33:20+00:00"
+        }
+      ]
+    },
+    {
+      "name": "image_with_caption",
+      "payload": {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "WABA_SYNTHETIC_001",
+            "changes": [
+              {
+                "field": "messages",
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15550000001",
+                    "phone_number_id": "SYNTH_PHONE_ID"
+                  },
+                  "messages": [
+                    {
+                      "from": "919000000102",
+                      "id": "wamid.SYNTH.IMG.1",
+                      "timestamp": "1730000000",
+                      "type": "image",
+                      "image": {
+                        "id": "SYNTH_MEDIA_IMG_1",
+                        "mime_type": "image/jpeg",
+                        "sha256": "synthetic-sha256",
+                        "caption": "Here is our hotel shortlist"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "external_id": "wamid.SYNTH.IMG.1",
+          "thread": "919000000102",
+          "body": "Here is our hotel shortlist",
+          "media_refs": ["whatsapp:image:SYNTH_MEDIA_IMG_1"],
+          "occurred_at": "2024-10-27T03:33:20+00:00"
+        }
+      ]
+    },
+    {
+      "name": "document_without_caption",
+      "payload": {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "WABA_SYNTHETIC_001",
+            "changes": [
+              {
+                "field": "messages",
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15550000001",
+                    "phone_number_id": "SYNTH_PHONE_ID"
+                  },
+                  "messages": [
+                    {
+                      "from": "919000000103",
+                      "id": "wamid.SYNTH.DOC.1",
+                      "timestamp": "1730000000",
+                      "type": "document",
+                      "document": {
+                        "id": "SYNTH_MEDIA_DOC_1",
+                        "filename": "passport-synthetic.pdf",
+                        "mime_type": "application/pdf",
+                        "caption": ""
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "external_id": "wamid.SYNTH.DOC.1",
+          "thread": "919000000103",
+          "body": "[Document: passport-synthetic.pdf]",
+          "media_refs": [
+            "whatsapp:document:SYNTH_MEDIA_DOC_1:passport-synthetic.pdf"
+          ],
+          "occurred_at": "2024-10-27T03:33:20+00:00"
+        }
+      ]
+    },
+    {
+      "name": "interactive_button_reply",
+      "payload": {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "WABA_SYNTHETIC_001",
+            "changes": [
+              {
+                "field": "messages",
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15550000001",
+                    "phone_number_id": "SYNTH_PHONE_ID"
+                  },
+                  "messages": [
+                    {
+                      "from": "919000000104",
+                      "id": "wamid.SYNTH.BTN.1",
+                      "timestamp": "1730000000",
+                      "type": "interactive",
+                      "interactive": {
+                        "type": "button_reply",
+                        "button_reply": {
+                          "id": "btn_accept_quote",
+                          "title": "Yes, share the quote"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "external_id": "wamid.SYNTH.BTN.1",
+          "thread": "919000000104",
+          "body": "Yes, share the quote",
+          "media_refs": [],
+          "occurred_at": "2024-10-27T03:33:20+00:00"
+        }
+      ]
+    },
+    {
+      "name": "voice_note",
+      "payload": {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "WABA_SYNTHETIC_001",
+            "changes": [
+              {
+                "field": "messages",
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15550000001",
+                    "phone_number_id": "SYNTH_PHONE_ID"
+                  },
+                  "messages": [
+                    {
+                      "from": "919000000105",
+                      "id": "wamid.SYNTH.AUD.1",
+                      "timestamp": "1730000000",
+                      "type": "voice",
+                      "voice": {
+                        "id": "SYNTH_MEDIA_AUD_1",
+                        "mime_type": "audio/ogg; codecs=opus"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "external_id": "wamid.SYNTH.AUD.1",
+          "thread": "919000000105",
+          "body": "[Voice/Audio message]",
+          "media_refs": ["whatsapp:audio:SYNTH_MEDIA_AUD_1"],
+          "occurred_at": "2024-10-27T03:33:20+00:00"
+        }
+      ]
+    },
+    {
+      "name": "location_share",
+      "payload": {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "WABA_SYNTHETIC_001",
+            "changes": [
+              {
+                "field": "messages",
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15550000001",
+                    "phone_number_id": "SYNTH_PHONE_ID"
+                  },
+                  "messages": [
+                    {
+                      "from": "919000000106",
+                      "id": "wamid.SYNTH.LOC.1",
+                      "timestamp": "1730000000",
+                      "type": "location",
+                      "location": {
+                        "latitude": 19.07609,
+                        "longitude": 72.877426,
+                        "name": "Synthetic Travel Office"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "external_id": "wamid.SYNTH.LOC.1",
+          "thread": "919000000106",
+          "body": "[Location: lat=19.07609, lng=72.877426]",
+          "media_refs": [],
+          "occurred_at": "2024-10-27T03:33:20+00:00"
+        }
+      ]
+    },
+    {
+      "name": "unsupported_sticker",
+      "payload": {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "WABA_SYNTHETIC_001",
+            "changes": [
+              {
+                "field": "messages",
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15550000001",
+                    "phone_number_id": "SYNTH_PHONE_ID"
+                  },
+                  "messages": [
+                    {
+                      "from": "919000000107",
+                      "id": "wamid.SYNTH.STK.1",
+                      "timestamp": "1730000000",
+                      "type": "sticker",
+                      "sticker": { "id": "SYNTH_MEDIA_STK_1" }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "external_id": "wamid.SYNTH.STK.1",
+          "thread": "919000000107",
+          "body": "[sticker message]",
+          "media_refs": [],
+          "occurred_at": "2024-10-27T03:33:20+00:00"
+        }
+      ]
+    },
+    {
+      "name": "delivery_status_only",
+      "payload": {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "WABA_SYNTHETIC_001",
+            "changes": [
+              {
+                "field": "messages",
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15550000001",
+                    "phone_number_id": "SYNTH_PHONE_ID"
+                  },
+                  "statuses": [
+                    {
+                      "id": "wamid.SYNTH.OUT.1",
+                      "status": "delivered",
+                      "timestamp": "1730000000",
+                      "recipient_id": "919000000101"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    }
+  ]
+}
