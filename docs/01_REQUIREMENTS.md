@@ -50,9 +50,9 @@ IDs are stable and referenced by tasks. Default autonomy levels (A0-A3) are defi
 - PKG-3 Produce up to three explainable option tiers (value / standard / premium).
 
 ## MKT — Market intelligence
-- MKT-1 `CompetitorPriceAdapter`: ManualEntry, LicensedData (stub), PublicPageScraper for MakeMyTrip, Goibibo, Booking.com, Agoda, EaseMyTrip, Yatra (per-site flag, default OFF).
+- MKT-1 `CompetitorPriceAdapter`: ManualEntry, LicensedData (stub), and authorized logged-in page collection for owner-enabled portals (per-portal flag, default OFF, terms/access review recorded).
 - MKT-2 Comparability score (route, dates, pax, fare class, baggage, refundability); only comparable, fresh snapshots influence the price ceiling.
-- MKT-3 Scraper failures never block quoting; recorded as `unavailable`.
+- MKT-3 Portal price-collection failures never block quoting; recorded as `unavailable`.
 - MKT-4 Seasonality and demand signals from the agency's own history.
 
 ## PRC — Pricing

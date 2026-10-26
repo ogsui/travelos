@@ -15,7 +15,7 @@ Channels: WhatsApp | Email | Web form | IG/FB DM | GBP | Phone log
         v
    Workers (Celery): workflows, supplier calls, LLM jobs, rendering, campaigns
    Beat: timers (expiry, reminders, schedules, nightly jobs)
-   Scraper worker (Playwright): isolated container, public pages only
+   Portal price worker (Playwright): isolated container, owner-authorized accounts only
         |
    LLM Gateway --> providers (policy-gated by data class)
 ```
