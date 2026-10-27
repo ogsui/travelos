@@ -12,6 +12,12 @@ RUN groupadd --gid 10001 travelos \
 
 COPY pyproject.toml README.md ./
 COPY src ./src
+# Runtime data: the LLM gateway builds a PromptRegistry at startup and refuses
+# to start when this directory is missing.
+COPY prompts ./prompts
+# Migrations ship in the image so the one-shot `migrate` service can apply them.
+COPY alembic.ini ./
+COPY migrations ./migrations
 
 RUN pip install --upgrade pip && pip install .
 

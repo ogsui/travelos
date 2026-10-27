@@ -10,13 +10,26 @@ This pack is the **blueprint and task list**, not finished code. OpenCode builds
 - See `git log` for the per-task history and `tasks/INDEX.md` for the full plan.
 
 ## Quickstart (Docker)
+Needs Docker Desktop with the WSL 2 backend. `docker compose` is sufficient; `make` is optional.
 ```sh
-cp .env.example .env        # local/synthetic values only
-make up                     # api, worker, beat, web, postgres, redis, minio, mailpit
+cp .env.example .env
+# Required even in test mode: customer PII is encrypted at rest. Generate once
+# and keep it — changing the key makes existing ciphertext unreadable.
+python -c "import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
+# paste the result into .env as ENCRYPTION_KEY=...
+
+make up        # or: docker compose up -d --build
+# Seed inside the container so no host Python/venv is needed:
+docker compose run --rm api python -m travelos.admin.seed
 curl http://localhost:8000/health
 curl http://localhost:8000/ready
 # dashboard http://localhost:3000 · mailpit http://localhost:8025 · minio http://localhost:9001
 ```
+`docker compose up` runs a one-shot `migrate` service (`alembic upgrade head`) before the API starts, so a fresh Postgres volume is upgraded automatically. Seeding is still a separate step; without it the database has no policies or synthetic CRM rows. `make seed` does the same from a host venv.
+
+Two caveats: `/ready` only reports that configuration loads (it does not probe Postgres or Redis yet), and the project has no bootstrap-admin command, so there is no `users` row to log in with. Both are tracked in `docs/BACKLOG.md`.
+
+Reset everything including the volumes with `docker compose down -v`, then `docker compose up -d --build` and re-seed.
 
 `make check` runs lint + `mypy --strict` + tests. `make eval-inquiry` refreshes the parser eval result (fake plumbing mode). `make logs` follows the stack; `make down` stops it.
 

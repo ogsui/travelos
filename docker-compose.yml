@@ -15,8 +15,24 @@ x-app-build: &app-build
   build:
     context: .
     dockerfile: Dockerfile
+  # Containers do not read the project's .env on their own. Forward it so keys
+  # such as ENCRYPTION_KEY reach the app; explicit `environment` values below
+  # still win (that is how DATABASE_URL points at the postgres service).
+  # `required: false` keeps `docker compose config` working before .env exists.
+  env_file:
+    - path: .env
+      required: false
 
 services:
+  migrate:
+    <<: *app-build
+    command: ["alembic", "upgrade", "head"]
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   api:
     <<: *app-build
     command: ["uvicorn", "travelos.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
@@ -28,6 +44,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -59,6 +77,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   beat:
@@ -69,6 +89,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   web:
