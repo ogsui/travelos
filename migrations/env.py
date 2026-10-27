@@ -10,6 +10,7 @@ from sqlalchemy import engine_from_config, pool
 
 import travelos.approval.models
 import travelos.channels.models
+import travelos.conversation.models
 import travelos.core.models
 import travelos.crm.models
 import travelos.inquiry.models

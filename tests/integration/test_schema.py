@@ -32,6 +32,7 @@ BUSINESS_TABLES = {
     "consents",
     "conversations",
     "contacts",
+    "conversation_handoffs",
     "customer_merge_history",
     "customers",
     "feature_flags",
@@ -416,6 +417,7 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
             "ix_inquiries_duplicate_of",
         },
         "requirements": {"ix_requirements_inquiry_created"},
+        "conversation_handoffs": {"ix_conversation_handoffs_tenant_inquiry"},
         "message_drafts": {
             "ix_message_drafts_tenant_inquiry",
             "ix_message_drafts_approval",
@@ -448,6 +450,7 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
         "conversations": {("tenant_id", "channel", "external_thread_id")},
         "messages": {("tenant_id", "channel", "external_id")},
         "requirements": {("tenant_id", "inquiry_id", "version")},
+        "conversation_handoffs": {("human_task_id",)},
         "message_drafts": {("approval_id",)},
     }
     for table, expected in expected_unique.items():

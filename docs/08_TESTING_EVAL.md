@@ -184,6 +184,25 @@ the body out of the approval payload, refuses unapproved templates, closed
 inquiries, missing conversations and other tenants, and writes nothing when the
 claim guard blocks a reply.
 
+## Conversation handoffs (task 011b)
+`tests/unit/test_conversation_handoff_triggers.py` pins every trigger
+(anger/complaint in English and Hinglish, legal, visa, refund, amount forms
+including `₹45,000`, `Rs. 45000`, `1.5 lakh` and `2 crore`), proves that ordinary
+numbers and substrings ("madam", "class") do not fire, checks the loop rule and
+its window, and locks the priority/routing policy and threshold validation.
+`tests/unit/test_conversation_summary.py` proves the summary carries the facts a
+staff member needs (state, travellers, route, dates, budget, stated/missing
+fields, message counts, last messages, pending drafts), puts triggers first so
+truncation cannot hide the reason, caps message excerpts and the total length,
+and handles missing customer/requirement data without inventing values.
+`tests/integration/test_conversation_handoff.py` proves one encrypted handoff row
+plus one open task per inquiry, no customer text in the title, high/owner routing
+for the risk reasons, a handoff for every positive amount, idempotent repeats,
+refresh-and-merge when a new reason appears, a fresh task after the first is
+done, a handoff from a closed inquiry, tenant isolation, a refused negative
+amount, an inquiry with no conversation, and that no outbound message is written.
+The schema test also covers the new table, its unique task link and index.
+
 
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
