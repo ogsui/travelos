@@ -43,6 +43,13 @@ real customer data — every value here is obviously synthetic.
   `expected_blocked`) proves injection text alone does not block a safe reply.
   Handoff expectations prove a refund or visa request hidden in an instruction
   still reaches a human.
+- `package_gold.jsonl` — the task 013b1 hand-checked package-component set: 11
+  requirements with the normalized offers a search returned, the expected
+  components (offer id, quantity, unit basis), the expected problem codes and an
+  exact total in paise. Timestamps are offsets from one fixed clock so the file
+  stays readable and reproducible. `tests/unit/test_packages_eval.py` derives
+  the expectations from the builder's documented rules and refuses a component,
+  quantity or total drift. Do not copy gold from a builder run.
 - `results/` — recorded eval output per prompt version. The committed
   `inquiry_parser_v1.json` is a **fake mode** run (`gate.status =
   "not_measured"`), because no owner-configured model is available; it proves the
@@ -51,7 +58,10 @@ real customer data — every value here is obviously synthetic.
   pass. Re-run with `python -m travelos.inquiry.eval --mode fake|provider`. The
   committed `sales_replies_v1.json` is a deterministic run over fixtures; it
   measures the guard and handoff routing, and marks `helpful`/`on_brand` as
-  `not_measured`. Re-run with `python -m travelos.conversation.eval`.
+  `not_measured`. Re-run with `python -m travelos.conversation.eval`. The
+  committed `package_components_v1.json` is a deterministic component-match run
+  over the hand-checked package set (mean 1.0, gate 0.85); re-run with
+  `python -m travelos.packages.eval`.
 
 Regenerate the adversarial file with `make seed`; do not edit it by hand. The
 gold and injection files are hand-checked and must be edited deliberately, with

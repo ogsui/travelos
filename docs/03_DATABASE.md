@@ -47,12 +47,12 @@
 - `fx_rates` (pair, rate, source, at)
 
 ## Quotes
-- `itineraries` (inquiry_id, option_tier, days JSONB) · `itinerary_items` (itinerary_id, component_type, snapshot_id, qty, details)
+- `itineraries` (inquiry_id, option_tier value|standard|premium, trip_kind, start_date, end_date, currency, total_cost_paise, booked_rooms, party JSONB, occupancy JSONB, days JSONB) · `itinerary_items` (itinerary_id, position, component_type, snapshot_id, supplier, offer_id, quantity, unit_basis, start_date, end_date, day_index, cost_paise, currency, reasons JSONB, explanation, offer JSONB)
 - `quotes` (inquiry_id, current_revision, state, expires_at, accept_token_hash)
 - `quote_revisions` (quote_id, number, totals_paise, currency, pdf_ref, diff_from_previous JSONB, approval_id)
 - `quote_lines` (revision_id, description, snapshot_id, cost_paise, price_paise, tax_paise)
 - `quote_events` (quote_id, type sent|delivered|viewed|accepted|expired, at, channel)
-- Implementation note (task 013a): the `packages` module currently has only pure models, occupancy rules and the deterministic builder. No `itineraries` or `itinerary_items` table exists yet; persistence, snapshot-id links and the gold component baseline land in task 013b.
+- Implementation note (task 013b1): `itineraries` and `itinerary_items` exist with migration `0015`; the store writes supplier cost only and rebuilds the pure `Itinerary`. It does not price, tax or write a quote, and it refuses a snapshot id it cannot match to the offer. `option_tier` is stored now, but the value/standard/premium ranking is task 013b2. `quotes` and their tables remain task 015.
 
 ## Approvals
 - `approval_requests` (action_type, subject_type/id, requested_by, status pending|approved|edited|rejected|expired, level, proposed JSONB, final JSONB, reason, context JSONB, requires_four_eyes, approvals_needed/count, reviewer_id, second_reviewer_id, decided_at, expires_at, escalated_at, escalation_count). See the task 005 notes below.

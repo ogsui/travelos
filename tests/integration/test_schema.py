@@ -39,6 +39,8 @@ BUSINESS_TABLES = {
     "human_tasks",
     "idempotency_keys",
     "inquiries",
+    "itineraries",
+    "itinerary_items",
     "llm_calls",
     "message_drafts",
     "messages",

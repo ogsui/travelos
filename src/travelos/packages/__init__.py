@@ -1,6 +1,11 @@
-"""Deterministic itinerary and package assembly (task 013a)."""
+"""Deterministic itinerary assembly, occupancy rules and persistence (task 013)."""
 
 from travelos.packages.builder import build_package
+from travelos.packages.errors import (
+    ItineraryNotFoundError,
+    PackageError,
+    PackagePersistenceError,
+)
 from travelos.packages.models import (
     BuildProblem,
     ComponentType,
@@ -9,6 +14,7 @@ from travelos.packages.models import (
     ItineraryDay,
     OccupancyAssessment,
     OccupancyProblem,
+    OptionTier,
     PackageBuild,
     ProblemCode,
     RoomAllocation,
@@ -26,6 +32,8 @@ from travelos.packages.occupancy import (
     assess_occupancy,
     classify_age,
 )
+from travelos.packages.records import ItineraryItemRecord, ItineraryRecord
+from travelos.packages.store import ItineraryStore
 
 __all__ = [
     "DEFAULT_OCCUPANCY_POLICY",
@@ -34,10 +42,17 @@ __all__ = [
     "Itinerary",
     "ItineraryComponent",
     "ItineraryDay",
+    "ItineraryItemRecord",
+    "ItineraryNotFoundError",
+    "ItineraryRecord",
+    "ItineraryStore",
     "OccupancyAssessment",
     "OccupancyPolicy",
     "OccupancyProblem",
+    "OptionTier",
     "PackageBuild",
+    "PackageError",
+    "PackagePersistenceError",
     "ProblemCode",
     "RoomAllocation",
     "RoomPlan",

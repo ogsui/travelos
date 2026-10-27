@@ -1,0 +1,369 @@
+{
+  "case_count": 11,
+  "component_match_rate": 1.0,
+  "cost_match_rate": 1.0,
+  "exact_case_rate": 1.0,
+  "failures": [],
+  "gate": {
+    "passed": true,
+    "required_component_match_rate": 0.85
+  },
+  "mode": "deterministic",
+  "outcomes": [
+    {
+      "actual_components": [
+        {
+          "component_type": "flight",
+          "offer_id": "air-out",
+          "quantity": 3,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "transfer",
+          "offer_id": "transfer-goa",
+          "quantity": 3,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "hotel",
+          "offer_id": "hotel-goa",
+          "quantity": 2,
+          "unit_basis": "room"
+        },
+        {
+          "component_type": "flight",
+          "offer_id": "air-back",
+          "quantity": 3,
+          "unit_basis": "traveller"
+        }
+      ],
+      "actual_problems": [],
+      "actual_total_paise": 8100000,
+      "case_id": "pkg_001",
+      "category": "family package",
+      "component_ratio": 1.0,
+      "cost_match": true,
+      "exact": true,
+      "expected_component_count": 4,
+      "expected_problems": [],
+      "matched_components": 4,
+      "problems_match": true
+    },
+    {
+      "actual_components": [
+        {
+          "component_type": "flight",
+          "offer_id": "del-goa",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "transfer",
+          "offer_id": "transfer-goa",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "hotel",
+          "offer_id": "hotel-goa",
+          "quantity": 1,
+          "unit_basis": "room"
+        },
+        {
+          "component_type": "flight",
+          "offer_id": "goa-mum",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "transfer",
+          "offer_id": "transfer-mumbai",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "hotel",
+          "offer_id": "hotel-mumbai",
+          "quantity": 1,
+          "unit_basis": "room"
+        },
+        {
+          "component_type": "flight",
+          "offer_id": "mum-del",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        }
+      ],
+      "actual_problems": [],
+      "actual_total_paise": 7400000,
+      "case_id": "pkg_002",
+      "category": "multi-city package",
+      "component_ratio": 1.0,
+      "cost_match": true,
+      "exact": true,
+      "expected_component_count": 7,
+      "expected_problems": [],
+      "matched_components": 7,
+      "problems_match": true
+    },
+    {
+      "actual_components": [
+        {
+          "component_type": "flight",
+          "offer_id": "air-out",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        }
+      ],
+      "actual_problems": [],
+      "actual_total_paise": 2600000,
+      "case_id": "pkg_003",
+      "category": "one-way flight",
+      "component_ratio": 1.0,
+      "cost_match": true,
+      "exact": true,
+      "expected_component_count": 1,
+      "expected_problems": [],
+      "matched_components": 1,
+      "problems_match": true
+    },
+    {
+      "actual_components": [
+        {
+          "component_type": "flight",
+          "offer_id": "air-out",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "transfer",
+          "offer_id": "transfer-goa",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "hotel",
+          "offer_id": "hotel-goa",
+          "quantity": 1,
+          "unit_basis": "room"
+        },
+        {
+          "component_type": "activity",
+          "offer_id": "activity-goa",
+          "quantity": 1,
+          "unit_basis": "group"
+        },
+        {
+          "component_type": "flight",
+          "offer_id": "air-back",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        }
+      ],
+      "actual_problems": [],
+      "actual_total_paise": 5000000,
+      "case_id": "pkg_004",
+      "category": "package with activity",
+      "component_ratio": 1.0,
+      "cost_match": true,
+      "exact": true,
+      "expected_component_count": 5,
+      "expected_problems": [],
+      "matched_components": 5,
+      "problems_match": true
+    },
+    {
+      "actual_components": [
+        {
+          "component_type": "visa",
+          "offer_id": "visa-singapore",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        }
+      ],
+      "actual_problems": [],
+      "actual_total_paise": 190000,
+      "case_id": "pkg_005",
+      "category": "visa only",
+      "component_ratio": 1.0,
+      "cost_match": true,
+      "exact": true,
+      "expected_component_count": 1,
+      "expected_problems": [],
+      "matched_components": 1,
+      "problems_match": true
+    },
+    {
+      "actual_components": [
+        {
+          "component_type": "flight",
+          "offer_id": "air-out",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "transfer",
+          "offer_id": "transfer-goa",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "hotel",
+          "offer_id": "hotel-cheap",
+          "quantity": 1,
+          "unit_basis": "room"
+        },
+        {
+          "component_type": "flight",
+          "offer_id": "air-back",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        }
+      ],
+      "actual_problems": [],
+      "actual_total_paise": 4500000,
+      "case_id": "pkg_006",
+      "category": "cheapest eligible hotel",
+      "component_ratio": 1.0,
+      "cost_match": true,
+      "exact": true,
+      "expected_component_count": 4,
+      "expected_problems": [],
+      "matched_components": 4,
+      "problems_match": true
+    },
+    {
+      "actual_components": [],
+      "actual_problems": [
+        "no_offer"
+      ],
+      "actual_total_paise": null,
+      "case_id": "pkg_007",
+      "category": "sold out hotel",
+      "component_ratio": 1.0,
+      "cost_match": true,
+      "exact": true,
+      "expected_component_count": 0,
+      "expected_problems": [
+        "no_offer"
+      ],
+      "matched_components": 0,
+      "problems_match": true
+    },
+    {
+      "actual_components": [],
+      "actual_problems": [
+        "too_few_adults"
+      ],
+      "actual_total_paise": null,
+      "case_id": "pkg_008",
+      "category": "invalid occupancy",
+      "component_ratio": 1.0,
+      "cost_match": true,
+      "exact": true,
+      "expected_component_count": 0,
+      "expected_problems": [
+        "too_few_adults"
+      ],
+      "matched_components": 0,
+      "problems_match": true
+    },
+    {
+      "actual_components": [
+        {
+          "component_type": "flight",
+          "offer_id": "air-new",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "transfer",
+          "offer_id": "transfer-goa",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "hotel",
+          "offer_id": "hotel-goa",
+          "quantity": 1,
+          "unit_basis": "room"
+        },
+        {
+          "component_type": "flight",
+          "offer_id": "air-back",
+          "quantity": 2,
+          "unit_basis": "traveller"
+        }
+      ],
+      "actual_problems": [],
+      "actual_total_paise": 4900000,
+      "case_id": "pkg_009",
+      "category": "expired cheaper offer",
+      "component_ratio": 1.0,
+      "cost_match": true,
+      "exact": true,
+      "expected_component_count": 4,
+      "expected_problems": [],
+      "matched_components": 4,
+      "problems_match": true
+    },
+    {
+      "actual_components": [],
+      "actual_problems": [
+        "no_offer"
+      ],
+      "actual_total_paise": null,
+      "case_id": "pkg_010",
+      "category": "currency mismatch",
+      "component_ratio": 1.0,
+      "cost_match": true,
+      "exact": true,
+      "expected_component_count": 0,
+      "expected_problems": [
+        "no_offer"
+      ],
+      "matched_components": 0,
+      "problems_match": true
+    },
+    {
+      "actual_components": [
+        {
+          "component_type": "flight",
+          "offer_id": "air-out",
+          "quantity": 6,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "transfer",
+          "offer_id": "transfer-goa",
+          "quantity": 6,
+          "unit_basis": "traveller"
+        },
+        {
+          "component_type": "hotel",
+          "offer_id": "hotel-goa",
+          "quantity": 3,
+          "unit_basis": "room"
+        },
+        {
+          "component_type": "flight",
+          "offer_id": "air-back",
+          "quantity": 6,
+          "unit_basis": "traveller"
+        }
+      ],
+      "actual_problems": [],
+      "actual_total_paise": 13500000,
+      "case_id": "pkg_011",
+      "category": "group package",
+      "component_ratio": 1.0,
+      "cost_match": true,
+      "exact": true,
+      "expected_component_count": 4,
+      "expected_problems": [],
+      "matched_components": 4,
+      "problems_match": true
+    }
+  ],
+  "problem_accuracy": 1.0
+}

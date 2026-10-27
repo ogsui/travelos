@@ -44,6 +44,18 @@ class UnitBasis(StrEnum):
     GROUP = "group"
 
 
+class OptionTier(StrEnum):
+    """The option tier an itinerary is persisted under.
+
+    Task 013b1 only stores the label so a later tier-ranking slice can write
+    value/standard/premium rows separately. The ranking rules do not exist yet.
+    """
+
+    VALUE = "value"
+    STANDARD = "standard"
+    PREMIUM = "premium"
+
+
 class RoomType(StrEnum):
     SINGLE = "single"
     DOUBLE = "double"

@@ -294,15 +294,42 @@ per adult rule, minimum rooms for large parties, extra requested rooms, the
 classification. The default room policy is a placeholder for owner confirmation;
 see docs/BACKLOG.md.
 
-The gold component-match baseline (>= 85%) is not measured yet: 013a has no gold
-itinerary set or persistence. Task 013b adds `data/eval/package_gold.jsonl`, the
-three option tiers and the recorded baseline.
+The gold component-match baseline (>= 85%) is now measured by the hand-checked
+set in `data/eval/package_gold.jsonl`; see the task 013b1 section below.
+
+## Package persistence and gold component baseline (task 013b1)
+`data/eval/package_gold.jsonl` is a hand-checked set of 11 cases: family,
+multi-city, one-way flight, activity, visa, cheapest-hotel selection, sold-out,
+invalid occupancy, expired-offer fallback, currency mismatch and a group. Each
+case carries the normalized offers, the expected components with quantity and
+unit basis, the expected problem codes, and an exact total in paise. The first
+case includes a worked derivation in `tests/unit/test_packages_eval.py`.
+
+`tests/unit/test_packages_eval.py` runs the real deterministic builder over the
+set and asserts a mean component-match rate of 1.0 (gate >= 0.85), 100% exact
+problem codes, exact totals, and that a mutated quantity is reported as a
+failure. The recorded baseline is
+`data/eval/results/package_components_v1.json`; regenerate with
+`python -m travelos.packages.eval`. A missing or failing result is not a pass.
+
+`tests/integration/test_itinerary_store.py` proves the store writes one
+`itineraries` row plus one `itinerary_items` row per component, reloads the
+identical pure `Itinerary`, records supplier cost and booked rooms, and writes
+one audit entry. It also proves an item links only to the matching supplier
+snapshot, and that a snapshot for another offer, an unknown snapshot, a mapping
+outside the itinerary, an unknown option tier and another tenant are refused.
+`tests/integration/test_schema.py` includes both tables in the schema, money-type
+and downgrade checks.
+
+The value/standard/premium ranking is **not** implemented in 013b1; only the
+`option_tier` label is stored. Tiers need an owner rule for what makes a package
+premium, because normalized offers carry no star/board/cabin/direct attributes.
 
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|
 | Parser | >= 95% required-field accuracy; 0 silent assumptions |
-| Packages | >= 85% component match vs gold (baseline recorded in 013b; not measured yet) |
+| Packages | >= 85% component match vs gold (recorded baseline 1.0 in `package_components_v1.json`) |
 | Pricing | 0 failures in unit/property/golden tests; staff price within tolerance on >= 80% of shadow cases; never below floor |
 | Replies | >= 95% "approved unchanged or minor edit" over 100 drafts before A2 |
 | Sales replies (deterministic) | 0 unsupported promises; 100% handoff routing; 100% injection containment |

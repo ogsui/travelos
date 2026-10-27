@@ -36,7 +36,7 @@ Python 3.12, FastAPI (sync endpoints), SQLAlchemy 2 + Alembic, PostgreSQL 16, Re
 | inquiry | requirement schema, parser, missing-info logic |
 | conversation | sales/support drafting, handoff rules, follow-up cadences |
 | suppliers | normalized models, simulator, registry, parallel search, snapshots, authorized portal adapters |
-| packages | deterministic itinerary builder, occupancy/age rules, option tiers |
+| packages | deterministic itinerary builder, occupancy/age rules, persisted itineraries, option tiers |
 | market | competitor price adapters, comparability |
 | pricing | deterministic price engine, rules |
 | quotes | quote revisions, PDFs, acceptance |

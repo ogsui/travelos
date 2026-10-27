@@ -18,12 +18,13 @@ Phase 2 · Depends on: 010, 012 · Requirements: PKG-1, PKG-2, PKG-3
 
 ## Split (agreed 2026-10-27)
 - 013a (delivered): pure `packages` models, occupancy/age rules, deterministic assembly, multi-city routing, supplier deadlines, explanations, unit tests.
-- 013b: value/standard/premium option tiers, deterministic ranking, persistence (`itineraries`, `itinerary_items`), gold component set and the >=85% baseline.
+- 013b1 (delivered): persistence (`itineraries`, `itinerary_items`, migration 0015), snapshot links, hand-checked `data/eval/package_gold.jsonl` and the recorded >=85% component baseline.
+- 013b2 (remaining): value/standard/premium option tiers via deterministic ranking. Needs an owner rule for what makes a package premium; normalized `Offer` has no star/board/cabin/direct attribute.
 
 ## Acceptance criteria
-- Component match >= 85% vs gold (record baseline).
-- Invalid occupancy rejected with reasons.
-- Explanations list why each item was chosen.
+- Component match >= 85% vs gold (record baseline). Recorded: 1.0 across 11 hand-checked cases in `data/eval/results/package_components_v1.json`.
+- Invalid occupancy rejected with reasons. Done (task 013a).
+- Explanations list why each item was chosen. Done (task 013a).
 
 ## Human gates / approvals
 - None (internal).
