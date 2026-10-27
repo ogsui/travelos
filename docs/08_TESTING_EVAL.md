@@ -222,6 +222,35 @@ also recognises Hinglish `rupaye`, Indian `lakh`/`crore` and `45k` shorthand;
 `make eval-sales`.
 
 
+## Supplier domain and simulator (task 012a1)
+`tests/unit/test_suppliers_models.py` pins the normalized contract: integer-paise
+money (bool, float and string amounts are rejected), UTC-aware timestamps, an
+offer expiring after it was fetched, fare-rule currency matching the offer,
+bounded traveller and search inputs, `cancelled_at` only on a cancelled booking,
+and frozen models that reject unknown fields. It also proves that models
+serialize to JSON-ready data, so task 012a2 can persist an immutable snapshot
+without a second shape.
+
+`tests/unit/test_suppliers_simulator.py` covers the fixture adapter against a
+clock the test controls: the latest price point at or before now, no price before
+the first point, search matching by product type/city/route/travel date, sorting
+and `max_results_per_leg`, sold-out offers hidden from search, typed
+`SupplierTimeoutError`, a failed leg producing `SearchResult.failures` while other
+legs still return offers, a price change from its timestamp, hold expiry and
+idempotency, conflicting idempotency keys, availability checked for the traveller
+count, booking only from a live hold, expired holds, retrieve/cancel idempotency,
+refundable and non-refundable synthetic refunds, a read-only wallet, fixture
+validation and loading the real synthetic dataset. The simulator never sleeps and
+never uses wall time.
+
+`tests/contract/test_supplier_contract.py` is the adapter-agnostic suite: every
+target must return normalized available offers, repeat the same search at the same
+clock, match `price` and `rules`, hold/book/retrieve, reject unknown offers and
+bookings with typed errors, make hold/book/cancel idempotent, refuse a reused key
+for a different request, expose a read-only wallet, and leave the wallet unchanged
+across a booking and cancellation. A sandbox target is added only with
+owner-supplied access.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

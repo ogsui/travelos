@@ -30,6 +30,16 @@ Rule: for supplier and competitor price/inventory collection, use authorized por
 | Storage | ObjectStore | MinIO | S3-compatible | Encrypted buckets. |
 
 
+## Supplier adapters (task 012a1)
+- `SupplierAdapter` is the port: `search`, `price`, `rules`, `hold`, `book`, `cancel`, `retrieve`, `wallet_balance`. It returns normalized `Offer`/`FareRules`/`CancellationRules`/`Hold`/`Booking` models with integer paise and UTC timestamps.
+- `SupplierSimulator` is the fixture adapter. It reads `data/synthetic/supplier_inventory.jsonl` and `supplier_scenarios.jsonl` and reproduces price drift, sold out, timeouts, partial failures and hold expiry. Failures are typed and immediate; it never sleeps for the fixture's `after_ms` and never calls the network. Holds and bookings live in process memory and are not thread-safe.
+- `tests/contract/test_supplier_contract.py` is the shared suite. The simulator passes it today; an authorized sandbox adapter is added to its `TARGET_FACTORIES` only when the owner supplies access, and CI must build that target without network access.
+- `book`/`cancel` are on the interface because the booking orchestrator (task 020) will need them. No API route or service in this slice can reach them, and the adapter itself has no approval logic: the orchestrator and approval engine own that gate. The adapter never moves money; `wallet_balance` is a read.
+- Fare rules are supplier statements, not customer policy. The simulator's cancellation refund split is synthetic fixture behaviour, not an owner refund or cancellation rule.
+- A search may contain several legs for one supplier. A leg that fails is reported as a `SearchFailure`, so the caller receives partial results with a flag instead of an empty answer.
+- Portal price collection for tasks 12b–12d remains OFF and blocked on the owner's authorized accounts, permitted page workflows and terms/access confirmation. No portal endpoint, page workflow or parser is invented in this slice.
+
+
 ## LLM providers (task 006)
 - `LLMProvider` is a small interface: `name`, `model`, `policy`, `pricing`, and one `complete(request)` call. The request type deliberately has no tools, functions or streaming field, so injected text has no structural path to an action.
 - `FakeProvider` is deterministic and network-free; it is the default chain (`LLM_PROVIDER_CHAIN=["fake"]`) for tests, evals and CI. Live mode refuses it at settings validation.

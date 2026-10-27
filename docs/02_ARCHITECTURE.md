@@ -35,7 +35,7 @@ Python 3.12, FastAPI (sync endpoints), SQLAlchemy 2 + Alembic, PostgreSQL 16, Re
 | channels | whatsapp, email, sms, instagram, facebook, gbp, webform, mock |
 | inquiry | requirement schema, parser, missing-info logic |
 | conversation | sales/support drafting, handoff rules, follow-up cadences |
-| suppliers | adapters (mock, tbo, riya, portal_session), snapshots |
+| suppliers | normalized models, simulator, authorized portal adapters, snapshots |
 | packages | itinerary builder, option tiers |
 | market | competitor price adapters, comparability |
 | pricing | deterministic price engine, rules |

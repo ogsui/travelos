@@ -40,6 +40,7 @@
 ## Suppliers, market, pricing
 - `suppliers` (name, type, adapter, status, credentials_ref) · `supplier_searches` (inquiry_id, params, started/finished, status)
 - `price_snapshots` (supplier_id, product_type, payload JSONB, net_paise, taxes_paise, currency, fare_rules JSONB, fetched_at, expires_at, request_hash) — immutable
+- Task 012a1 adds only the normalized domain models and the simulator. The `suppliers`, `supplier_searches` and `price_snapshots` tables above, their indexes and the append-only guard land in task 012a2; none of those tables exists yet.
 - `competitor_snapshots` (site, query_hash, payload JSONB, price_paise, comparability_score, fetched_at, status ok|blocked|unavailable)
 - `pricing_rule_sets` (version, rules JSONB, approved_by, active_from) · `tax_rule_tables` (version, rules JSONB, approved_by_accountant, active_from)
 - `price_calculations` (quote_revision_id, inputs JSONB, outputs JSONB, rule_version, explanation JSONB) — immutable
