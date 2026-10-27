@@ -325,6 +325,33 @@ The value/standard/premium ranking is **not** implemented in 013b1; only the
 `option_tier` label is stored. Tiers need an owner rule for what makes a package
 premium, because normalized offers carry no star/board/cabin/direct attributes.
 
+## Competitor price comparability (task 014a1)
+`tests/unit/test_market_comparability.py` (44 tests, two hypothesis properties)
+pins the pure `market` rules that decide whether a competitor price may influence
+the price ceiling:
+
+- an identical observation scores 100/100 and is comparable; route matching
+  ignores case, spacing, arrow, en dash and "to";
+- a reversed route, a different product type, a foreign currency, a stale or
+  future-dated fetch, a blocked/unavailable portal result, a two-day date shift,
+  a changed stay length, a one-way/return mismatch, a different party, fare class
+  or refundability are each refused with their own reason;
+- a one-day shift with the same length scores 88, one extra checked bag 95, an
+  unstated fare class or refundability 90, and more than 20 points of unknown
+  detail is `insufficient_detail`;
+- the threshold, maximum age and one-way handling are policy/product values and
+  are exercised by a lower-threshold, a one-hour-age and a one-way case;
+- the reference is the exact integer median of comparable prices, an outlier
+  (three MADs, 10% relative floor) never moves it, ordering is by price then
+  site, and an empty or all-blocked input returns no reference plus
+  `no_trusted_prices` without raising. That is the MKT-3 behaviour: competitor
+  data missing never blocks quoting.
+
+The defaults (threshold 80, 20 points of unknown detail, one-day tolerance,
+24-hour age, three-MAD outlier rule) are engineering placeholders for owner
+confirmation in `docs/BACKLOG.md`. There is no persistence, adapter, portal
+automation or currency conversion in this slice.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

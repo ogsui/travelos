@@ -10,6 +10,7 @@ Phase 2 · Depends on: 007, 012 · Requirements: MKT-1, MKT-2, MKT-3, MKT-4
 
 ## Needs from owner
 - Per-portal authorization decision (account owner, permitted workflows, terms review) recorded in `docs/DECISIONS.md`.
+- Confirmation of the comparability defaults (threshold, maximum age, median-vs-lowest reference) before the price ceiling depends on them; tracked in `docs/BACKLOG.md`.
 
 ## Scope
 - `CompetitorPriceAdapter`; ManualEntry (dashboard hook), LicensedData stub, and authorized logged-in page collection (Playwright, isolated worker) for sites the owner enables.
@@ -17,11 +18,17 @@ Phase 2 · Depends on: 007, 012 · Requirements: MKT-1, MKT-2, MKT-3, MKT-4
 - Comparability scoring (route, dates, pax, fare class, baggage, refundability) and outlier handling.
 - Parsers tested on saved HTML fixtures; seasonality/demand signals from the agency's own history.
 
+## Split (agreed 2026-10-27)
+- 014a1 (delivered): pure `market` comparability domain. `ComparabilityBasis` / `CompetitorPrice` / `ComparabilityAssessment`, six scored attributes, identity refusals, unknown-detail cap, median reference with MAD outlier filtering, 44 unit tests including two hypothesis properties. No persistence, adapter or portal code.
+- 014a2 (remaining): `CompetitorPriceAdapter` interface, ManualEntry adapter, LicensedData stub, comparator persistence (`competitor_snapshots`, migration), append-only store, per-site feature flags OFF by default, throttle/cache helpers.
+- 014b (blocked): authorized logged-in page collection (Playwright, isolated worker), fixture parsers and the operator pause/resume flow. Needs the owner's per-portal authorization and terms review in `docs/DECISIONS.md`.
+- MKT-4 seasonality/demand signals from the agency's own history are not started; they belong to a later slice once quoting history exists.
+
 ## Acceptance criteria
-- Portal failure never blocks quoting (test).
-- Rate limit and cache tests.
-- Comparability unit tests.
-- No challenge-solving or access-control-evasion code present (review check).
+- Portal failure never blocks quoting (test). Done for the scoring path in 014a1; the portal path is 014b.
+- Rate limit and cache tests. 014a2/014b.
+- Comparability unit tests. Done (014a1).
+- No challenge-solving or access-control-evasion code present (review check). Holds: no portal code exists yet.
 
 ## Human gates / approvals
 - Enabling a site is owner-only.
