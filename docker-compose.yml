@@ -20,6 +20,9 @@ x-app-build: &app-build
   build:
     context: .
     dockerfile: Dockerfile
+  # Reap child processes (a stray `docker exec` must not leave a zombie that
+  # blocks `docker stop`) and forward signals so restarts are clean.
+  init: true
   # Containers do not read the project's .env on their own. Forward it so keys
   # such as ENCRYPTION_KEY reach the app; explicit `environment` values below
   # still win (that is how DATABASE_URL points at the postgres service).
@@ -52,12 +55,14 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
+      # 127.0.0.1, not localhost: uvicorn binds IPv4 only and the container's
+      # `localhost` can resolve to ::1 first, which hangs until the timeout.
       test:
         [
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready')",
         ]
       interval: 15s
       timeout: 5s
