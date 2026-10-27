@@ -30,10 +30,15 @@ from travelos.suppliers.models import (
     SearchFailure,
     SearchLeg,
     SearchResult,
+    SupplierResult,
+    SupplierSearchOutcome,
     SupplierSearchQuery,
     WalletBalance,
 )
+from travelos.suppliers.records import PriceSnapshot, Supplier, SupplierSearch
+from travelos.suppliers.search import SupplierSearchService, request_hash
 from travelos.suppliers.simulator import ScenarioType, SupplierSimulator
+from travelos.suppliers.store import SnapshotStore, SupplierCatalog
 
 __all__ = [
     "Booking",
@@ -53,18 +58,27 @@ __all__ = [
     "Offer",
     "OfferNotFoundError",
     "OfferUnavailableError",
+    "PriceSnapshot",
     "ScenarioType",
     "SearchFailure",
     "SearchLeg",
     "SearchResult",
+    "SnapshotStore",
+    "Supplier",
     "SupplierAdapter",
+    "SupplierCatalog",
     "SupplierError",
     "SupplierNotFoundError",
+    "SupplierResult",
+    "SupplierSearch",
+    "SupplierSearchOutcome",
     "SupplierSearchQuery",
+    "SupplierSearchService",
     "SupplierSimulator",
     "SupplierSimulatorError",
     "SupplierTimeoutError",
     "SupplierUnavailableError",
     "SupplierValidationError",
     "WalletBalance",
+    "request_hash",
 ]

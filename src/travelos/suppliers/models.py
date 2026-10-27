@@ -18,6 +18,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Annotated, Literal, Self
+from uuid import UUID
 
 from pydantic import (
     AfterValidator,
@@ -48,6 +49,7 @@ def _aware_utc(value: datetime, label: str) -> datetime:
 
 UtcDateTime = Annotated[AwareDatetime, AfterValidator(_as_utc)]
 CurrencyCode = Annotated[str, Field(pattern=r"^[A-Z]{3}$")]
+Sha256Hex = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 Paise = Annotated[StrictInt, Field(ge=0)]
 TravellerCount = Annotated[StrictInt, Field(ge=1, le=30)]
 IdempotencyKey = Annotated[str, Field(min_length=8, max_length=200)]
@@ -248,6 +250,66 @@ class SearchResult(_FrozenModel):
     @property
     def offer_total(self) -> int:
         return len(self.offers)
+
+
+class SupplierResult(_FrozenModel):
+    """One supplier's contribution to an aggregated search.
+
+    ``cached`` means the offers came from an unexpired snapshot rather than a
+    fresh supplier call. A leg that failed is never hidden here.
+    """
+
+    supplier: ShortText
+    offers: tuple[Offer, ...] = ()
+    failures: tuple[SearchFailure, ...] = ()
+    cached: bool = False
+
+    @model_validator(mode="after")
+    def _offers_belong_to_the_supplier(self) -> Self:
+        if any(offer.supplier != self.supplier for offer in self.offers):
+            raise ValueError("every offer supplier must match the result supplier")
+        return self
+
+    @property
+    def complete(self) -> bool:
+        return not self.failures
+
+    @property
+    def offer_count(self) -> int:
+        return len(self.offers)
+
+
+class SupplierSearchOutcome(_FrozenModel):
+    """The result of one aggregated, parallel search across suppliers.
+
+    ``complete`` is false when any supplier or leg failed, even when other
+    suppliers returned useful offers. Callers must show the flag rather than
+    treating a partial answer as a full one.
+    """
+
+    search_id: UUID
+    request_hash: Sha256Hex
+    results: Annotated[tuple[SupplierResult, ...], Field(min_length=1)]
+    started_at: UtcDateTime
+    finished_at: UtcDateTime
+
+    @model_validator(mode="after")
+    def _finished_after_start(self) -> Self:
+        if self.finished_at < self.started_at:
+            raise ValueError("finished_at must not be before started_at")
+        return self
+
+    @property
+    def complete(self) -> bool:
+        return all(result.complete for result in self.results)
+
+    @property
+    def offers(self) -> tuple[Offer, ...]:
+        return tuple(offer for result in self.results for offer in result.offers)
+
+    @property
+    def failures(self) -> tuple[SearchFailure, ...]:
+        return tuple(failure for result in self.results for failure in result.failures)
 
 
 class HoldRequest(_FrozenModel):

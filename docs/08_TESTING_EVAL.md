@@ -251,6 +251,27 @@ for a different request, expose a read-only wallet, and leave the wallet unchang
 across a booking and cancellation. A sandbox target is added only with
 owner-supplied access.
 
+## Supplier snapshots, search orchestration and circuit breaker (task 012a2)
+`tests/integration/test_supplier_snapshots.py` proves the registry registers one
+adapter once and refuses a silent adapter-class change. It pins the snapshot
+shape (exact integer paise, JSON payload, flat fare rules, request hash) and the
+TTL cap, scopes fresh reads by request hash and supplier, lets a newer batch
+replace an expired one, and proves immutability twice: the ORM listeners raise
+`AppendOnlyError`, and raw `UPDATE`/`DELETE` SQL fails on the PostgreSQL trigger.
+
+`tests/integration/test_supplier_search.py` covers the orchestration: one blocked
+supplier returns the other supplier's offers with `complete=False` and a
+leg-level `unavailable` failure; a slow supplier hits only its own deadline while
+the fast supplier still returns; unexpected exceptions are contained without
+leaking their message; a disabled supplier is not called; repeated failures open
+the circuit, a third search skips the supplier, and a probe after the reset window
+is allowed; a success closes the breaker; a fresh snapshot avoids a second
+adapter call while `use_cache=False` forces one; an expired snapshot refreshes;
+snapshots link to their search and both the search and snapshot writes are
+audited; a barrier proves the adapters run in parallel; and the query hash is
+stable and changes with the query. The timeout test uses a short sleep and a
+shorter injected deadline, so the suite stays fast.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

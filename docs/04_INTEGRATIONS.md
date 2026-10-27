@@ -37,7 +37,15 @@ Rule: for supplier and competitor price/inventory collection, use authorized por
 - `book`/`cancel` are on the interface because the booking orchestrator (task 020) will need them. No API route or service in this slice can reach them, and the adapter itself has no approval logic: the orchestrator and approval engine own that gate. The adapter never moves money; `wallet_balance` is a read.
 - Fare rules are supplier statements, not customer policy. The simulator's cancellation refund split is synthetic fixture behaviour, not an owner refund or cancellation rule.
 - A search may contain several legs for one supplier. A leg that fails is reported as a `SearchFailure`, so the caller receives partial results with a flag instead of an empty answer.
-- Portal price collection for tasks 12b–12d remains OFF and blocked on the owner's authorized accounts, permitted page workflows and terms/access confirmation. No portal endpoint, page workflow or parser is invented in this slice.
+- Portal price collection for tasks 12b-12d remains OFF and blocked on the owner's authorized accounts, permitted page workflows and terms/access confirmation. No portal endpoint, page workflow or parser is invented in this slice.
+
+
+## Supplier search orchestration (task 012a2)
+- `SupplierSearchService` calls each adapter in parallel with its own deadline. A timeout, an open circuit or any typed adapter failure becomes a `SearchFailure` per requested leg; offers from the other suppliers are still returned with `complete=False`. Unexpected adapter exceptions are contained and logged by type only, never with the raw provider text.
+- Successful adapter results are recorded through `SnapshotStore` as `price_snapshots`. An unexpired batch with the same request hash is reused on the next search (`cached=True`); `use_cache=False` forces a fresh supplier read. The hash covers the normalized query only, never customer data.
+- Circuit breakers are in-process and per supplier. `SUPPLIER_CIRCUIT_FAILURE_THRESHOLD` and `SUPPLIER_CIRCUIT_RESET_SECONDS` control opening and the half-open probe. Opening affects this process only; a restart clears it. Cached results bypass an open circuit.
+- The orchestration timeout is a backstop, not cancellation: Python worker threads cannot be killed. Each portal adapter must enforce its own page/socket deadline, and a timed-out or access-denied portal must be treated as unavailable until an operator resolves access.
+- There is no API or worker wired to the service yet. `book`/`cancel` remain unreachable by any route and stay behind the future booking orchestrator (task 020) and approval engine.
 
 
 ## LLM providers (task 006)

@@ -154,6 +154,15 @@ class Settings(BaseSettings):
     approval_ttl_minutes: int = Field(default=1440, ge=5, le=525_600)
     approval_escalation_minutes: int = Field(default=30, ge=1, le=525_600)
 
+    # Supplier search (task 012a2). The timeout is a per-supplier backstop: a
+    # portal adapter must also enforce its own socket/page deadline. Snapshots
+    # are reused only inside this TTL and only for the same normalized query.
+    supplier_search_timeout_seconds: float = Field(default=20.0, gt=0, le=300)
+    supplier_snapshot_ttl_seconds: int = Field(default=600, ge=1, le=86_400)
+    supplier_circuit_failure_threshold: int = Field(default=3, ge=1, le=100)
+    supplier_circuit_reset_seconds: int = Field(default=60, ge=1, le=3600)
+    supplier_search_max_workers: int = Field(default=8, ge=1, le=64)
+
     # LLM gateway (task 006). The fake provider is the only default and may
     # never run in live mode. Real providers need the owner's key and model.
     prompts_dir: str = "prompts"

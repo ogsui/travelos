@@ -8,6 +8,7 @@ the invariants a snapshot or booking relies on.
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta, timezone
+from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -27,6 +28,8 @@ from travelos.suppliers.models import (
     SearchFailure,
     SearchLeg,
     SearchResult,
+    SupplierResult,
+    SupplierSearchOutcome,
     SupplierSearchQuery,
     WalletBalance,
 )
@@ -422,6 +425,51 @@ def test_wallet_balance_requires_aware_time() -> None:
             balance_paise=0,
             currency="INR",
             as_of=datetime(2026, 11, 1, 10, 0),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Aggregated search outcome
+# ---------------------------------------------------------------------------
+
+
+def test_an_outcome_is_partial_when_one_supplier_fails() -> None:
+    failure = SearchFailure(
+        product_type="hotel",
+        code=FailureCode.UNAVAILABLE,
+        message="MockHotels is blocked",
+        retryable=False,
+    )
+    outcome = SupplierSearchOutcome(
+        search_id=uuid4(),
+        request_hash="a" * 64,
+        results=(
+            SupplierResult(supplier="MockAir", offers=(offer(),)),
+            SupplierResult(supplier="MockHotels", failures=(failure,)),
+        ),
+        started_at=NOW,
+        finished_at=LATER,
+    )
+
+    assert outcome.complete is False
+    assert [item.offer_id for item in outcome.offers] == ["sku_0001"]
+    assert outcome.failures == (failure,)
+    assert outcome.results[0].cached is False
+
+
+def test_a_supplier_result_cannot_contain_another_suppliers_offer() -> None:
+    with pytest.raises(ValidationError, match="supplier"):
+        SupplierResult(supplier="MockHotels", offers=(offer(),))
+
+
+def test_an_outcome_requires_at_least_one_supplier() -> None:
+    with pytest.raises(ValidationError):
+        SupplierSearchOutcome(
+            search_id=uuid4(),
+            request_hash="a" * 64,
+            results=(),
+            started_at=NOW,
+            finished_at=LATER,
         )
 
 
