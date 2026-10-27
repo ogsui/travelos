@@ -272,11 +272,37 @@ audited; a barrier proves the adapters run in parallel; and the query hash is
 stable and changes with the query. The timeout test uses a short sleep and a
 shorter injected deadline, so the suite stays fast.
 
+## Package assembly and occupancy (task 013a)
+`tests/unit/test_packages_builder.py` pins a deterministic build from normalized
+offers: a family package has one outbound flight, arrival transfer, hotel and
+return flight, with exact integer-paise cost, per-component quantities and the
+documented unit basis. It proves a multi-city trip gets one flight and one stay
+per stop, that a flight-only one-way trip adds no hotel/transfer, that an
+explicit component set overrides the trip-type default, that an activity or visa
+is added only when requested, that invalid occupancy returns reasons and no
+itinerary, that a missing end date and a too-short multi-city stay are rejected,
+that sold-out/expired/foreign-currency offers are never selected, that ties break
+by supplier then offer id, and that the earliest supplier deadline is exposed.
+Every chosen component carries a machine-readable `SelectionReason` and a
+templated explanation naming the supplier, offer, price and candidate count; no
+LLM is involved.
+
+`tests/unit/test_packages_occupancy.py` pins the age boundaries (0-1 infant,
+2-11 child, 12+ adult for room sharing), the one-adult-per-room rule, the infant
+per adult rule, minimum rooms for large parties, extra requested rooms, the
+30-room ceiling, a tightened policy, and the family/corporate/group/individual
+classification. The default room policy is a placeholder for owner confirmation;
+see docs/BACKLOG.md.
+
+The gold component-match baseline (>= 85%) is not measured yet: 013a has no gold
+itinerary set or persistence. Task 013b adds `data/eval/package_gold.jsonl`, the
+three option tiers and the recorded baseline.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|
 | Parser | >= 95% required-field accuracy; 0 silent assumptions |
-| Packages | >= 85% component match vs gold |
+| Packages | >= 85% component match vs gold (baseline recorded in 013b; not measured yet) |
 | Pricing | 0 failures in unit/property/golden tests; staff price within tolerance on >= 80% of shadow cases; never below floor |
 | Replies | >= 95% "approved unchanged or minor edit" over 100 drafts before A2 |
 | Sales replies (deterministic) | 0 unsupported promises; 100% handoff routing; 100% injection containment |

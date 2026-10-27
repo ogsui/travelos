@@ -16,6 +16,10 @@ Phase 2 · Depends on: 010, 012 · Requirements: PKG-1, PKG-2, PKG-3
 - Three explainable option tiers via deterministic ranking; LLM only for narrative text.
 - Compare output to gold quotes.
 
+## Split (agreed 2026-10-27)
+- 013a (delivered): pure `packages` models, occupancy/age rules, deterministic assembly, multi-city routing, supplier deadlines, explanations, unit tests.
+- 013b: value/standard/premium option tiers, deterministic ranking, persistence (`itineraries`, `itinerary_items`), gold component set and the >=85% baseline.
+
 ## Acceptance criteria
 - Component match >= 85% vs gold (record baseline).
 - Invalid occupancy rejected with reasons.

@@ -52,6 +52,7 @@
 - `quote_revisions` (quote_id, number, totals_paise, currency, pdf_ref, diff_from_previous JSONB, approval_id)
 - `quote_lines` (revision_id, description, snapshot_id, cost_paise, price_paise, tax_paise)
 - `quote_events` (quote_id, type sent|delivered|viewed|accepted|expired, at, channel)
+- Implementation note (task 013a): the `packages` module currently has only pure models, occupancy rules and the deterministic builder. No `itineraries` or `itinerary_items` table exists yet; persistence, snapshot-id links and the gold component baseline land in task 013b.
 
 ## Approvals
 - `approval_requests` (action_type, subject_type/id, requested_by, status pending|approved|edited|rejected|expired, level, proposed JSONB, final JSONB, reason, context JSONB, requires_four_eyes, approvals_needed/count, reviewer_id, second_reviewer_id, decided_at, expires_at, escalated_at, escalation_count). See the task 005 notes below.
