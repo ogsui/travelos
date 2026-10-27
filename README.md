@@ -5,8 +5,8 @@ An AI-assisted operating system for a travel agency: lead capture, WhatsApp/emai
 This pack is the **blueprint and task list**, not finished code. OpenCode builds the system one small task at a time from `AGENTS.md`, `docs/` and `tasks/`.
 
 ## Current status
-- **Tasks 001–007 complete** — foundation, safety gates, workflow and approval engines, LLM gateway, and deterministic synthetic datasets with CRM seeding.
-- **Next** — task 008, CRM core, consent service, and import.
+- **Tasks 001–010 complete** — foundation, safety gates, workflow and approval engines, LLM gateway, synthetic data, CRM (consent, records, import, merge), channels, and the inquiry parser with its hand-checked gold set and eval runner.
+- **Task 011 in progress** — 011a is complete: owner-approved acknowledgement templates, a deterministic reply claim guard, and approval-gated encrypted drafts. 011b (handoff triggers and conversation summaries) and 011c (sales-reply eval rubric) are next.
 - See `git log` for the per-task history and `tasks/INDEX.md` for the full plan.
 
 ## Quickstart (Docker)
@@ -18,7 +18,7 @@ curl http://localhost:8000/ready
 # dashboard http://localhost:3000 · mailpit http://localhost:8025 · minio http://localhost:9001
 ```
 
-`make check` runs lint + `mypy --strict` + tests. `make logs` follows the stack; `make down` stops it.
+`make check` runs lint + `mypy --strict` + tests. `make eval-inquiry` refreshes the parser eval result (fake plumbing mode). `make logs` follows the stack; `make down` stops it.
 
 ## Quickstart (no Docker, Windows or Linux)
 Python 3.12 is enough for the checks; Node 22+ is only needed for the dashboard.
@@ -27,6 +27,7 @@ python -m venv .venv
 # Windows:
 .venv\Scripts\pip install -e ".[dev]"
 .venv\Scripts\python -m pytest
+.venv\Scripts\python -m travelos.inquiry.eval --mode fake
 .venv\Scripts\ruff check .
 .venv\Scripts\mypy src
 # Linux/macOS: source .venv/bin/activate, then pip install -e ".[dev]" and make check
