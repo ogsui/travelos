@@ -21,13 +21,22 @@ python -c "import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decod
 make up        # or: docker compose up -d --build
 # Seed inside the container so no host Python/venv is needed:
 docker compose run --rm api python -m travelos.admin.seed
+# There is no sign-up screen yet; create one login and note the password it prints:
+docker compose run --rm api python -m travelos.admin.create_user \
+  --email owner@travelos.test --role owner
 curl http://localhost:8000/health
 curl http://localhost:8000/ready
-# dashboard http://localhost:3000 · mailpit http://localhost:8025 · minio http://localhost:9001
+# dashboard http://localhost:3000 · mailpit http://localhost:8025 · API docs http://localhost:8000/docs
 ```
 `docker compose up` runs a one-shot `migrate` service (`alembic upgrade head`) before the API starts, so a fresh Postgres volume is upgraded automatically. Seeding is still a separate step; without it the database has no policies or synthetic CRM rows. `make seed` does the same from a host venv.
 
-Two caveats: `/ready` only reports that configuration loads (it does not probe Postgres or Redis yet), and the project has no bootstrap-admin command, so there is no `users` row to log in with. Both are tracked in `docs/BACKLOG.md`.
+Owner and admin logins must have TOTP before they can sign in. After the password step returns `403 mfa_enrollment_required`, call `POST /auth/mfa/enroll` with the same credentials, add the returned `otpauth_uri` to an authenticator app, then log in with the current code. `--role agent` does not require MFA, which is convenient for a first look.
+
+Caveats: `/ready` only reports that configuration loads (it does not probe Postgres or Redis yet), and `create_user` refuses any mode except `test`. Both are tracked in `docs/BACKLOG.md`.
+
+MinIO is not part of the default stack: it deleted its Docker Hub images and now needs an authenticated `quay.io` pull, and no code uses object storage yet. Enable it later with `docker compose --profile storage up`.
+
+On a low-memory machine, build the two images one at a time (`docker compose build api` then `docker compose build web`); building everything in parallel can exhaust a 6 GB host.
 
 Reset everything including the volumes with `docker compose down -v`, then `docker compose up -d --build` and re-seed.
 

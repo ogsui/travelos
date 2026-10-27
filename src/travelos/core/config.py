@@ -121,6 +121,9 @@ class Settings(BaseSettings):
     # Infrastructure. Non-live modes fall back to the local Docker defaults.
     database_url: str | None = None
     redis_url: str | None = None
+    # Where synthetic fixtures are written. Unset means the repository's
+    # `data/` directory; containers set it to a writable path.
+    data_dir: str | None = None
     secret_key: SecretStr | None = None
     public_base_url: str | None = None
     encryption_key: SecretStr | None = None

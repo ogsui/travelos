@@ -27,8 +27,14 @@ from travelos.synthetic.loader import SeedCrmReport, seed_crm
 logger = logging.getLogger("travelos.admin.seed")
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SYNTHETIC_DATA_DIR = REPO_ROOT / "data" / "synthetic"
-EVAL_DATA_DIR = REPO_ROOT / "data" / "eval"
+
+
+def data_root(settings: Settings) -> Path:
+    """Repository ``data/`` by default; ``DATA_DIR`` when set (containers)."""
+
+    if settings.data_dir:
+        return Path(settings.data_dir)
+    return REPO_ROOT / "data"
 
 
 def seed_autonomy_policies(settings: Settings) -> SeedReport:
@@ -64,11 +70,12 @@ def main() -> int:
         return 1
 
     dataset = generate_dataset(settings.synthetic_seed)
+    root = data_root(settings)
     try:
         manifest = write_dataset(
             dataset,
-            SYNTHETIC_DATA_DIR,
-            eval_directory=EVAL_DATA_DIR,
+            root / "synthetic",
+            eval_directory=root / "eval",
         )
     except OSError as exc:
         logger.error("seed: could not write synthetic fixtures: %s", exc)

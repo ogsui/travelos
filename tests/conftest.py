@@ -16,6 +16,10 @@ from travelos.api.app import create_app
 from travelos.core.config import KillSwitches, Mode, Settings, reset_settings_cache
 from travelos.security.encryption import StaticKeyProvider, set_key_provider
 
+# A developer's own `.env` must never change what the suite measures: tests set
+# every value they care about explicitly (or through monkeypatch).
+Settings.model_config["env_file"] = None
+
 TEST_ENCRYPTION_KEY = b"0123456789abcdef0123456789abcdef"
 
 

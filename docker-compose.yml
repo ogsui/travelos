@@ -10,8 +10,13 @@ x-app-environment: &app-environment
   LOG_JSON: "true"
   DATABASE_URL: postgresql+psycopg://travelos:${POSTGRES_PASSWORD:-travelos}@postgres:5432/travelos
   REDIS_URL: redis://redis:6379/0
+  # The seed writes fixtures into /app/data (owned by the app user in the image).
+  DATA_DIR: /app/data
 
 x-app-build: &app-build
+  # One image for api/worker/beat/migrate: they share a Dockerfile, so separate
+  # tags only caused stale copies and duplicated builds.
+  image: travelos-api:latest
   build:
     context: .
     dockerfile: Dockerfile
@@ -84,7 +89,14 @@ services:
   beat:
     <<: *app-build
     command:
-      ["celery", "-A", "travelos.worker.celery_app:celery_app", "beat", "--loglevel=INFO"]
+      [
+        "celery",
+        "-A",
+        "travelos.worker.celery_app:celery_app",
+        "beat",
+        "--loglevel=INFO",
+        "--schedule=/var/lib/travelos/celerybeat-schedule",
+      ]
     environment: *app-environment
     depends_on:
       redis:
@@ -139,7 +151,13 @@ services:
     restart: unless-stopped
 
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    # MinIO deleted its Docker Hub images and now requires an authenticated
+    # quay.io pull (Red Hat SSO). Object storage is not used by any code yet, so
+    # this stays behind a profile: `docker compose --profile storage up`.
+    # TODO(owner): choose an object store before document/PDF storage ships —
+    # authenticated MinIO, or a self-hosted alternative. Do not guess.
+    profiles: ["storage"]
+    image: ${MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z}
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-travelos}

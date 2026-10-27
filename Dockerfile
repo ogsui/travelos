@@ -8,7 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN groupadd --gid 10001 travelos \
-    && useradd --uid 10001 --gid travelos --create-home travelos
+    && useradd --uid 10001 --gid travelos --create-home travelos \
+    && mkdir -p /app/data /var/lib/travelos \
+    && chown -R travelos:travelos /app/data /var/lib/travelos
 
 COPY pyproject.toml README.md ./
 COPY src ./src

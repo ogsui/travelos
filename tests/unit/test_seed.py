@@ -79,9 +79,16 @@ def test_seed_reports_the_policy_and_crm_report(
     )
 
     assert seed.main() == 0
+    root = seed.data_root(test)
     assert written == [
-        (dataset, seed.SYNTHETIC_DATA_DIR, seed.EVAL_DATA_DIR),
+        (dataset, root / "synthetic", root / "eval"),
     ]
+
+
+def test_data_root_uses_the_data_dir_override(tmp_path: Path) -> None:
+    settings = Settings(_env_file=None, mode=Mode.TEST, data_dir=str(tmp_path))
+    assert seed.data_root(settings) == tmp_path
+    assert seed.data_root(Settings(_env_file=None, mode=Mode.TEST)) == (seed.REPO_ROOT / "data")
 
 
 def test_seed_survives_an_unavailable_database(monkeypatch: pytest.MonkeyPatch) -> None:
