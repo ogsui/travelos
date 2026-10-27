@@ -28,6 +28,7 @@
 - **Abuse**: per-contact rate limits, length limits, attachment scanning.
 - Public web-form intake uses strict field-size validation, a honeypot, and a 10-minute source rate limit (5 accepted submissions). Shadow/live use an atomic Redis counter keyed by a keyed digest of the direct client address; test mode uses an in-memory limiter. Forwarded IP headers are not trusted. A Redis failure rejects intake closed. Form name/email/phone claims are not stored or linked to CRM identity until a verification flow exists; no consent is inferred from form submission.
 - Red-team suite `tests/eval/test_llm_injection.py` runs in CI against `data/eval/llm_injection.jsonl` (see `08_TESTING_EVAL.md`).
+- Sales replies are additionally red-teamed by `tests/eval/test_sales_reply_eval.py` against `data/eval/sales_injection.jsonl`: customer instructions cannot add a claim to a reply, a clean reply is not blocked by injection text, and a refund or visa request hidden in an instruction still hands off to a human. The guard is deterministic, so no inbound text can influence it.
 
 ## Privacy (India: verify with counsel)
 - Digital Personal Data Protection Act 2023 and Rules: notice, purpose-limited consent, withdrawal as easy as giving, data-principal rights (access/correction/erasure), breach handling, special care for children's data (many travellers are minors: consent via parent/guardian), retention limits, processors/vendors agreements.

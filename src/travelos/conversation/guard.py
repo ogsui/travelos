@@ -32,7 +32,15 @@ class ClaimKind(StrEnum):
 _PATTERNS: Final[dict[ClaimKind, tuple[re.Pattern[str], ...]]] = {
     ClaimKind.MONEY: (
         re.compile(r"(?:₹|rs\.?|inr)\s*\d[\d,]*(?:\.\d{1,2})?", re.IGNORECASE),
-        re.compile(r"\b\d[\d,]*(?:\.\d{1,2})?\s*(?:rupees|inr)\b", re.IGNORECASE),
+        re.compile(
+            r"\b\d[\d,]*(?:\.\d{1,2})?\s*(?:rupees|rupaye|rupaya|rupay|inr)\b",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"\b\d[\d,]*(?:\.\d{1,2})?\s*(?:lakh|lakhs|lac|lacs|crore|crores|cr)\b",
+            re.IGNORECASE,
+        ),
+        re.compile(r"\b\d[\d,]*(?:\.\d{1,2})?\s*k\b", re.IGNORECASE),
         re.compile(
             r"\b(?:price|prices|cost|costs|fare|fares|total|amount|refund\s+amount)\b",
             re.IGNORECASE,

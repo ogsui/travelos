@@ -103,3 +103,19 @@ def test_money_sources_do_not_support_policy_claims() -> None:
     report = scan_reply(body, {"money": ["quote:rev_01"]})
     assert report.passed is False
     assert report.unsupported_kinds() == ("policy",)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "Aapke liye total 45,000 rupaye hoga.",
+        "The package is 1.5 lakh per person.",
+        "Only 2 crore for the whole group.",
+        "Just 45k for two people.",
+        "Budget 45,000 rupees, final.",
+    ],
+)
+def test_hinglish_indian_and_shorthand_money_forms_are_claims(body: str) -> None:
+    report = scan_reply(body)
+    assert ClaimKind.MONEY in {claim.kind for claim in report.claims}
+    assert report.passed is False

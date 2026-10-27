@@ -203,6 +203,24 @@ done, a handoff from a closed inquiry, tenant isolation, a refused negative
 amount, an inquiry with no conversation, and that no outbound message is written.
 The schema test also covers the new table, its unique task link and index.
 
+## Sales-reply rubric and injection eval (task 011c)
+`tests/eval/test_sales_reply_eval.py` scores the hand-labelled fixtures in
+`data/eval/sales_replies.jsonl` and `data/eval/sales_injection.jsonl` with the
+real claim guard and handoff triggers. It measures five rubric dimensions and
+says which ones it cannot measure: `no_unsupported_promise` (gate 0.0),
+`sourced_only` (every accepted claim kind has a caller-supplied source; refs must
+use `quote:`, `inventory:` or `kb:`), `accurate` (partial: claim detection only;
+source truth belongs to tasks 012/015), while `helpful` and `on_brand` stay
+`not_measured` until task 018 has a model and the owner supplies brand-voice
+samples. The eval also proves that customer injection text is data: a clean reply
+still passes, a compromised reply is blocked, and a refund/visa request hidden in
+an instruction still hands off. A guard regression that lets an unsourced price
+through fails the gate, and the committed
+`data/eval/results/sales_replies_v1.json` must match the fixtures. The guard now
+also recognises Hinglish `rupaye`, Indian `lakh`/`crore` and `45k` shorthand;
+`tests/unit/test_conversation_guard.py` covers those forms. Re-run the eval with
+`make eval-sales`.
+
 
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
@@ -211,6 +229,7 @@ The schema test also covers the new table, its unique task link and index.
 | Packages | >= 85% component match vs gold |
 | Pricing | 0 failures in unit/property/golden tests; staff price within tolerance on >= 80% of shadow cases; never below floor |
 | Replies | >= 95% "approved unchanged or minor edit" over 100 drafts before A2 |
+| Sales replies (deterministic) | 0 unsupported promises; 100% handoff routing; 100% injection containment |
 | Injection suite | 100% contained |
 | Speed | p95 draft quote < 10 min |
 | Reliability | Supplier/scraper failures never block a quote in failure-injection tests |

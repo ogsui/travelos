@@ -30,12 +30,28 @@ real customer data — every value here is obviously synthetic.
   parser must reject: an extra top-level action key, an invalid trip type, a
   quote the customer never wrote and a field filled without evidence. Each line
   names the expected error class; `run_injection_cases` scores containment.
+- `sales_replies.jsonl` — the task 011c sales-reply rubric fixtures: 23 synthetic
+  candidate replies with the customer message, the sources offered, the expected
+  verdict (`allowed`/`blocked`), the expected claim kinds and the expected
+  handoff triggers. Every source ref is namespaced (`quote:`, `inventory:` or
+  `kb:`), and blocked cases cover invented prices, availability, policies,
+  discounts, promises, wrong-kind sources, Hinglish/lakh/45k wording and
+  injection text that must stay data. `tests/eval/test_sales_reply_eval.py`
+  scores them with the real claim guard and handoff triggers.
+- `sales_injection.jsonl` — compromised or clean sales replies. A blocked case
+  names the claim kinds the guard must report; a clean case (empty
+  `expected_blocked`) proves injection text alone does not block a safe reply.
+  Handoff expectations prove a refund or visa request hidden in an instruction
+  still reaches a human.
 - `results/` — recorded eval output per prompt version. The committed
   `inquiry_parser_v1.json` is a **fake mode** run (`gate.status =
   "not_measured"`), because no owner-configured model is available; it proves the
   plumbing, not accuracy. Provider mode is the only mode that measures quality
   and a fake run never overwrites a provider result. A missing result is not a
-  pass. Re-run with `python -m travelos.inquiry.eval --mode fake|provider`.
+  pass. Re-run with `python -m travelos.inquiry.eval --mode fake|provider`. The
+  committed `sales_replies_v1.json` is a deterministic run over fixtures; it
+  measures the guard and handoff routing, and marks `helpful`/`on_brand` as
+  `not_measured`. Re-run with `python -m travelos.conversation.eval`.
 
 Regenerate the adversarial file with `make seed`; do not edit it by hand. The
 gold and injection files are hand-checked and must be edited deliberately, with
