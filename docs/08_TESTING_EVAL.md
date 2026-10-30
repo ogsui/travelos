@@ -335,7 +335,8 @@ the price ceiling:
 - a reversed route, a different product type, a foreign currency, a stale or
   future-dated fetch, a blocked/unavailable portal result, a two-day date shift,
   a changed stay length, a one-way/return mismatch, a different party, fare class
-  or refundability are each refused with their own reason;
+  or refundability, or a baggage allowance more than one bag apart are each
+  refused with their own reason;
 - a one-day shift with the same length scores 88, one extra checked bag 95, an
   unstated fare class or refundability 90, and more than 20 points of unknown
   detail is `insufficient_detail`;

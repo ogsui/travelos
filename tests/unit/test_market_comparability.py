@@ -248,11 +248,11 @@ def test_one_extra_checked_bag_is_a_close_match() -> None:
     assert level(assessment, ComparabilityAttribute.BAGGAGE) is ComparabilityLevel.CLOSE
 
 
-def test_a_much_different_baggage_allowance_is_graded_down() -> None:
+def test_a_much_different_baggage_allowance_is_not_comparable() -> None:
     assessment = assess_comparability(basis(), price(checked_bags=3), now=NOW)
 
-    assert assessment.comparable is True
-    assert assessment.score == 90
+    assert assessment.comparable is False
+    assert assessment.rejection is ComparisonRejection.BAGGAGE
     assert level(assessment, ComparabilityAttribute.BAGGAGE) is ComparabilityLevel.MISMATCH
 
 

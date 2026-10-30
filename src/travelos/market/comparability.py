@@ -47,6 +47,7 @@ _FATAL_MISMATCHES: Final[dict[ComparabilityAttribute, ComparisonRejection]] = {
     ComparabilityAttribute.DATES: ComparisonRejection.DATES,
     ComparabilityAttribute.PAX: ComparisonRejection.PAX,
     ComparabilityAttribute.FARE_CLASS: ComparisonRejection.FARE_CLASS,
+    ComparabilityAttribute.BAGGAGE: ComparisonRejection.BAGGAGE,
     ComparabilityAttribute.REFUNDABILITY: ComparisonRejection.REFUNDABILITY,
 }
 

@@ -94,6 +94,7 @@ class ComparisonRejection(StrEnum):
     DATES = "dates_mismatch"
     PAX = "pax_mismatch"
     FARE_CLASS = "fare_class_mismatch"
+    BAGGAGE = "baggage_mismatch"
     REFUNDABILITY = "refundability_mismatch"
     INSUFFICIENT_DETAIL = "insufficient_detail"
     BELOW_THRESHOLD = "below_threshold"
