@@ -29,6 +29,7 @@ BUSINESS_TABLES = {
     "autonomy_metrics",
     "autonomy_policies",
     "business_rule_versions",
+    "competitor_snapshots",
     "consents",
     "conversations",
     "contacts",

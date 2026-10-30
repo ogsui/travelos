@@ -1,4 +1,4 @@
-"""Competitor prices: adapters, comparability and reference selection (task 014)."""
+"""Competitor prices: adapters, comparability, reference selection and snapshots."""
 
 from travelos.market.adapters import (
     CompetitorFetch,

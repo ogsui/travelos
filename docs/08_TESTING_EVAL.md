@@ -375,8 +375,30 @@ contract:
   normalised to UTC.
 
 The adapters do not touch the network, a browser, the database or an LLM. Portal
-automation, per-site enablement flags, cache/throttle and persistence are 014a2b
-and 014b.
+automation, per-site enablement flags and cache/throttle are 014a2b2 and 014b.
+
+## Competitor snapshot persistence (task 014a2b1)
+`tests/integration/test_competitor_snapshot_store.py` (17 tests) and
+`tests/unit/test_market_query.py` (18 tests) pin the stored history:
+
+- `query_hash` is the lowercase sha256 of the canonical basis JSON; the exact
+  digest for a fixed basis is pinned, and every identity dimension (product type,
+  route, dates, party, fare class, baggage, refundability, currency) produces a
+  different query, so two products never share a cache entry;
+- recording an `ok` fetch writes one row per observation with its price, currency
+  and optional comparability score, and `latest` returns the payloads unchanged
+  (including `source_ref` and fetch time);
+- a blocked or unavailable run writes one row with no price and no currency, and
+  `latest` returns `None` for it — the absence is recorded rather than hidden;
+- `latest` filters by tenant and canonical query, ignores observations older than
+  `max_age`, orders by site then price, and refuses a non-positive age or a naive
+  clock;
+- an observation for another site, an `ok` fetch carrying a blocked observation,
+  or an assessment count that does not match the observations are refused;
+- snapshots are append-only through the ORM (`AppendOnlyError` on update/delete)
+  and through raw SQL (the PostgreSQL trigger blocks UPDATE);
+- each run writes one `market.snapshot.recorded` audit entry with site, query
+  hash, status and observation count (no price payload, no detail text).
 
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
