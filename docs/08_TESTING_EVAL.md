@@ -375,10 +375,11 @@ contract:
   normalised to UTC.
 
 The adapters do not touch the network, a browser, the database or an LLM. Portal
-automation, per-site enablement flags and cache/throttle are 014a2b2 and 014b.
+automation and the operator resume flow are 014b; the collection loop, per-site
+flags and cache/throttle are 014a2b2.
 
 ## Competitor snapshot persistence (task 014a2b1)
-`tests/integration/test_competitor_snapshot_store.py` (17 tests) and
+`tests/integration/test_competitor_snapshot_store.py` (20 tests) and
 `tests/unit/test_market_query.py` (18 tests) pin the stored history:
 
 - `query_hash` is the lowercase sha256 of the canonical basis JSON; the exact
@@ -399,6 +400,32 @@ automation, per-site enablement flags and cache/throttle are 014a2b2 and 014b.
   and through raw SQL (the PostgreSQL trigger blocks UPDATE);
 - each run writes one `market.snapshot.recorded` audit entry with site, query
   hash, status and observation count (no price payload, no detail text).
+
+## Competitor collection loop (task 014a2b2)
+`tests/unit/test_market_collection.py` (24 tests) and
+`tests/integration/test_competitor_collection.py` (5 tests) pin the run rules:
+
+- a site is disabled by default; `StaticSiteGate()` contacts nothing, and
+  `FeatureFlagSiteGate` maps `MakeMyTrip`/`Booking.com`/`EaseMyTrip`/`Goibibo`/
+  `Agoda`/`Yatra` onto the existing `scraper_*` switches, requiring both the
+  operator's environment switch and the owner's database flag (an unknown site
+  cannot be turned on by a database row);
+- an enabled site is fetched through the failure-isolating helper and recorded;
+  a fresh stored observation satisfies a cacheable source without calling the
+  adapter, and the next run reports `cached`;
+- a recent `unavailable` run is `throttled` for `min_interval` and retried after
+  it; a `blocked` run is never retried automatically, because an anti-bot or
+  CAPTCHA block needs an operator;
+- manual entry is not cacheable: it bypasses the cache and throttle, only new
+  entries are stored, an all-stored batch writes nothing, and an empty manual
+  source is not recorded as a failed attempt;
+- observations returned by a run cover every enabled adapter's fresh rows — cached
+  or just fetched — in a stable `(site, price)` order, and a disabled site's
+  stored prices are excluded;
+- one raising adapter is isolated (its detail names the exception type only) and
+  does not stop another site;
+- `CollectionPolicy` rejects non-positive durations; the loop rejects a naive
+  `now`.
 
 ## Suggested gates (tune with real data)
 | Gate | Criterion |

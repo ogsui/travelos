@@ -6,15 +6,18 @@ fresh observations for the same canonical query. It never scores comparability o
 its own: when the caller has assessments they are stored with the rows, so the
 score that justified a ceiling can be reviewed later.
 
-There is no fetch, cache, throttle or portal behaviour here. Collection policy is
-task 014a2b2; portal automation is 014b and remains blocked on the owner's
-per-site authorization.
+There is no fetch, cache, throttle or portal behaviour here: the collection loop
+(task 014a2b2) reads ``latest`` / ``last_attempt`` and decides what to fetch, and
+portal automation is 014b and remains blocked on the owner's per-site
+authorization.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -35,6 +38,14 @@ from travelos.market.query import query_hash
 from travelos.market.records import CompetitorSnapshot
 
 DEFAULT_MAX_AGE = timedelta(hours=24)
+
+
+@dataclass(frozen=True, slots=True)
+class SnapshotAttempt:
+    """The last recorded run for one site and query."""
+
+    status: FetchStatus
+    fetched_at: datetime
 
 
 class CompetitorSnapshotStore:
@@ -127,6 +138,7 @@ class CompetitorSnapshotStore:
         *,
         now: datetime,
         max_age: timedelta = DEFAULT_MAX_AGE,
+        site: str | None = None,
     ) -> tuple[CompetitorPrice, ...] | None:
         """Fresh observations for this query, or ``None`` when there are none.
 
@@ -134,21 +146,30 @@ class CompetitorSnapshotStore:
         Freshness is per observation, not per run: a manual entry typed at 09:00
         and another at 09:10 are both usable at 10:00, and the comparability step
         still decides whether each one may set the ceiling.
+
+        ``site`` narrows the read to one source; the collection loop uses it to
+        decide whether a site may be skipped as cached.
         """
 
         moment = _aware_utc(now)
         if not isinstance(max_age, timedelta) or max_age <= timedelta(0):
             raise MarketValidationError("max_age must be a positive timedelta")
+        if site is not None and not site.strip():
+            raise MarketValidationError("site must not be blank")
+
+        conditions = [
+            CompetitorSnapshot.tenant_id == self._tenant_id,
+            CompetitorSnapshot.query_hash == query_hash(basis),
+            CompetitorSnapshot.status == FetchStatus.OK.value,
+            CompetitorSnapshot.fetched_at >= moment - max_age,
+        ]
+        if site is not None:
+            conditions.append(CompetitorSnapshot.site == site)
 
         rows = (
             self._db.execute(
                 select(CompetitorSnapshot)
-                .where(
-                    CompetitorSnapshot.tenant_id == self._tenant_id,
-                    CompetitorSnapshot.query_hash == query_hash(basis),
-                    CompetitorSnapshot.status == FetchStatus.OK.value,
-                    CompetitorSnapshot.fetched_at >= moment - max_age,
-                )
+                .where(*conditions)
                 .order_by(
                     CompetitorSnapshot.site,
                     CompetitorSnapshot.price_paise,
@@ -162,6 +183,68 @@ class CompetitorSnapshotStore:
         if not rows:
             return None
         return tuple(CompetitorPrice.model_validate(row.payload) for row in rows)
+
+    def last_attempt(self, basis: ComparabilityBasis, *, site: str) -> SnapshotAttempt | None:
+        """The latest recorded run for this site and query, or ``None``.
+
+        Ordering is by observation time and then insertion, so a failed run is
+        visible even though it has no price row. The collection loop uses it to
+        throttle a recent failure and to stop retrying an anti-bot block.
+        """
+
+        if not site.strip():
+            raise MarketValidationError("site must not be blank")
+        row = self._db.execute(
+            select(CompetitorSnapshot.status, CompetitorSnapshot.fetched_at)
+            .where(
+                CompetitorSnapshot.tenant_id == self._tenant_id,
+                CompetitorSnapshot.query_hash == query_hash(basis),
+                CompetitorSnapshot.site == site,
+            )
+            .order_by(
+                CompetitorSnapshot.fetched_at.desc(),
+                CompetitorSnapshot.created_at.desc(),
+                CompetitorSnapshot.id.desc(),
+            )
+            .limit(1)
+        ).first()
+        if row is None:
+            return None
+        return SnapshotAttempt(
+            status=FetchStatus(row.status),
+            fetched_at=_aware_utc(row.fetched_at),
+        )
+
+    def stored_observations(
+        self, basis: ComparabilityBasis, *, site: str
+    ) -> tuple[CompetitorPrice, ...]:
+        """Every stored ``ok`` observation for this site and query, oldest first.
+
+        The collection loop compares a manual source's entries against this to
+        avoid appending the same human entry on every run.
+        """
+
+        if not site.strip():
+            raise MarketValidationError("site must not be blank")
+        payloads: Sequence[dict[str, Any]] = (
+            self._db.execute(
+                select(CompetitorSnapshot.payload)
+                .where(
+                    CompetitorSnapshot.tenant_id == self._tenant_id,
+                    CompetitorSnapshot.query_hash == query_hash(basis),
+                    CompetitorSnapshot.site == site,
+                    CompetitorSnapshot.status == FetchStatus.OK.value,
+                )
+                .order_by(
+                    CompetitorSnapshot.fetched_at,
+                    CompetitorSnapshot.price_paise,
+                    CompetitorSnapshot.id,
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return tuple(CompetitorPrice.model_validate(payload) for payload in payloads)
 
     @staticmethod
     def _scores(

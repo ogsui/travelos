@@ -69,6 +69,18 @@ class CompetitorPriceAdapter(ABC):
     def site(self) -> str:
         """Stable site name, used to group and order prices."""
 
+    @property
+    def cacheable(self) -> bool:
+        """Whether a fresh stored observation may replace a run.
+
+        Scraped and licensed sources answer with the site's current price, so a
+        recent stored observation can satisfy the question. A manual source
+        opts out: a human may add an entry at any time, and the cache must not
+        hide it.
+        """
+
+        return True
+
     @abstractmethod
     def fetch(self, basis: ComparabilityBasis, *, now: datetime) -> CompetitorFetch:
         """Return this site's prices for ``basis``, or why it has none."""
@@ -100,6 +112,10 @@ class ManualEntryAdapter(CompetitorPriceAdapter):
     @property
     def site(self) -> str:
         return self._site
+
+    @property
+    def cacheable(self) -> bool:
+        return False
 
     def add(self, price: CompetitorPrice) -> None:
         """Record one manually copied price for this site."""

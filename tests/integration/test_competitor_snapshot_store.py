@@ -320,3 +320,66 @@ def test_snapshots_cannot_be_updated_in_raw_sql(db) -> None:
 
     with pytest.raises(DBAPIError, match="append-only"):
         db.execute(text("UPDATE competitor_snapshots SET site = 'Hacked'"))
+
+
+def test_latest_can_be_narrowed_to_one_site(db) -> None:
+    store = CompetitorSnapshotStore(db)
+    store.record(
+        basis(),
+        fetch(site="SiteA", observations=(price(site="SiteA", price_paise=300_000),)),
+    )
+    store.record(
+        basis(),
+        fetch(site="SiteB", observations=(price(site="SiteB", price_paise=200_000),)),
+    )
+
+    latest = store.latest(basis(), now=NOW, max_age=timedelta(hours=24), site="SiteB")
+
+    assert latest is not None
+    assert [(item.site, item.price_paise) for item in latest] == [("SiteB", 200_000)]
+
+    with pytest.raises(MarketValidationError, match="site"):
+        store.latest(basis(), now=NOW, max_age=timedelta(hours=24), site="  ")
+
+
+def test_last_attempt_reports_the_latest_run_without_a_price(db) -> None:
+    store = CompetitorSnapshotStore(db)
+    earlier = NOW - timedelta(minutes=20)
+    store.record(basis(), fetch(at=earlier, observations=(price(fetched_at=earlier),)))
+    store.record(
+        basis(),
+        fetch(
+            status=FetchStatus.UNAVAILABLE,
+            observations=(),
+            detail="adapter failed (TimeoutError)",
+            at=NOW,
+        ),
+    )
+
+    attempt = store.last_attempt(basis(), site="SiteA")
+
+    assert attempt is not None
+    assert attempt.status is FetchStatus.UNAVAILABLE
+    assert attempt.fetched_at == NOW
+
+
+def test_stored_observations_returns_one_site_history_in_order(db) -> None:
+    store = CompetitorSnapshotStore(db)
+    older = NOW - timedelta(minutes=10)
+    newer = NOW - timedelta(minutes=5)
+    store.record(
+        basis(),
+        fetch(at=older, observations=(price(price_paise=4_600_000, fetched_at=older),)),
+    )
+    store.record(
+        basis(),
+        fetch(at=newer, observations=(price(price_paise=4_500_000, fetched_at=newer),)),
+    )
+    store.record(
+        basis(),
+        fetch(site="SiteB", observations=(price(site="SiteB", price_paise=4_100_000),)),
+    )
+
+    history = store.stored_observations(basis(), site="SiteA")
+
+    assert [item.price_paise for item in history] == [4_600_000, 4_500_000]
