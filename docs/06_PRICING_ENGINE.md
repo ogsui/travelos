@@ -45,6 +45,33 @@ Every result is stored immutably in `price_calculations` and referenced by the q
 - Revalidation tolerance (absolute and %) before booking; breach -> human decision.
 - Currency mixing forbidden within one total; conversions only via stored FX snapshots.
 
+## Rule loading and `NEEDS_CONFIG` (task 015a)
+`config/business_rules.yaml` is the owner's file; `pricing/rules.py` reads only its
+`version`, `pricing` and `tax` sections and ignores sections owned by other modules.
+Every money field may be `null` while the owner is still deciding, and a `null` is never
+defaulted:
+
+- `load_pricing_rules(path)` returns a `RulesetLoadResult` with status `OK` only when
+  every required value is present; otherwise the status is `NEEDS_CONFIG`, `ruleset` is
+  `None` and `gaps` lists each missing path (for example
+  `pricing.margins.hotel.min_paise`). A missing file is one gap with reason
+  `missing_file`, not an exception.
+- A malformed value (wrong type, negative amount, more than two percentage decimals,
+  `min > target > max`, unknown product key) raises `PricingConfigError` naming the
+  field. A typo must not look like an unfinished placeholder.
+- Percentages are converted once, at load time, to integer basis points (100 bps = 1%),
+  so no float reaches the calculator. `Money` remains integer paise.
+- The file carries a `version` and the loader returns a sha256 `source_hash` of the exact
+  bytes read, so a stored calculation can name the rule file it used. Database-backed
+  versioning/approval (`pricing_rule_sets`) is task 015c.
+- Tax **rates** are not in this file. `tax.tax_table_version`, `gst_basis_by_product` and
+  the TCS reference point at the accountant-approved table loaded by 015c; a placeholder
+  there also yields `NEEDS_CONFIG`.
+
+The shipped file is intentionally all-placeholder, so the system cannot quote a customer
+price until the owner fills it in. This slice does not calculate anything; the calculator
+is 015b.
+
 ## Test requirements
 Property tests (hypothesis): determinism; recommended >= floor unless status flagged; monotonic in supplier cost; line items sum exactly to totals; rounding never crosses the floor; tax never negative and always traceable to a table row; no float types in the module (static test); FX conversion round-trips within tolerance rules.
 Golden tests: >= 30 hand-checked scenarios supplied by the owner/accountant (family package, corporate multi-city, group, international flight with TCS case, hotel-only, visa-only, refundable vs non-refundable).

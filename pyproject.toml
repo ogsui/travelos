@@ -23,6 +23,7 @@ dependencies = [
     "tenacity>=9,<10",
     "cryptography>=44,<51",
     "argon2-cffi>=23.1,<26",
+    "pyyaml>=6.0,<7",
 ]
 
 [project.optional-dependencies]
@@ -35,6 +36,7 @@ dev = [
     "types-redis>=4.6,<5",
     "pre-commit>=4,<5",
     "pgserver>=0.1.4,<0.2",
+    "types-pyyaml>=6.0,<7",
 ]
 
 [tool.setuptools.packages.find]

@@ -427,6 +427,26 @@ flags and cache/throttle are 014a2b2.
 - `CollectionPolicy` rejects non-positive durations; the loop rejects a naive
   `now`.
 
+## Pricing rules and `NEEDS_CONFIG` (task 015a)
+`tests/unit/test_pricing_rules.py` (24 tests) pins the loader without using any real
+margin or tax value:
+
+- a complete synthetic file loads, with percentages converted exactly to integer basis
+  points (`8.55` → `855`), `max_age_minutes` to a `timedelta`, and the sha256
+  `source_hash` stable across reads;
+- a missing file is `NEEDS_CONFIG` with one `config`/`missing_file` gap and no hash; a
+  missing `pricing` or `tax` section is a single section-level gap;
+- each individual `null` (margin field, segment budget, GST basis, TCS reference,
+  version) is reported by its exact dotted path, and the shipped
+  `config/business_rules.yaml` is asserted to still be a placeholder, so filling it in
+  requires a deliberate test change;
+- invalid values (more than two decimals, a negative amount, unordered margins, a zero
+  rounding step, a non-INR currency) raise `PricingConfigError` naming the field, and
+  unknown keys inside `pricing`/`margins` are refused while unrelated top-level sections
+  are ignored;
+- a YAML syntax error reports a config error without echoing the file body, and a
+  non-mapping root is refused.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

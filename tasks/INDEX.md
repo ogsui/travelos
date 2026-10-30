@@ -38,6 +38,10 @@ Run in order. `/task NNN` in OpenCode. Review, commit, then start a fresh sessio
 | 013 | Itinerary & package builder | 2 | 010, 012 |
 | 014 | Competitor price adapters | 2 | 007, 012 |
 | 015 | Deterministic pricing engine | 2 | 012, 013, 014 |
+| 015a | Pricing rule schema, YAML loader and NEEDS_CONFIG | 2 | 015 |
+| 015b | Deterministic price calculator and golden/property tests | 2 | 015a, 012, 013, 014 |
+| 015c | Pricing persistence: rule sets, tax tables, FX and calculations | 2 | 015b, 002 |
+| 015d | Competitor ceiling and approval routing | 2 | 015c, 005, 014 |
 | 016 | Quotes, PDFs, acceptance, follow-ups | 2 | 005, 009, 015 |
 | 017 | Approval & inbox dashboard (mobile-first) | 2 | 003, 005, 016 |
 | 018 | Eval harness & shadow comparator | 2 | 010, 013, 015, 016 |
