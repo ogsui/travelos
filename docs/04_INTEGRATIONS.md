@@ -6,7 +6,7 @@ Rule: for supplier and competitor price/inventory collection, use authorized por
 |---|---|---|---|---|
 | Flights/hotels/transfers/activities | SupplierAdapter | SupplierSimulator | Authorized supplier portal for price/inventory collection; no API for this collection path | Portal account and automated access must be authorized. Booking actions are separate and approval-gated. |
 | Supplier portal automation | PortalSessionAdapter | Playwright vs fixtures | Logged-in portal automation, OFF by default | Owner enables each portal; authorized account only; pause for operator handling of permitted CAPTCHA/OTP/MFA challenges; access blocks are unavailable. |
-| Competitor prices | CompetitorPriceAdapter | Fixtures | Authorized logged-in competitor pages; ManualEntry; LicensedData (stub) | No API for competitor-price collection. Per-site owner enablement and portal terms review required. |
+| Competitor prices | CompetitorPriceAdapter | ManualEntry (in-memory), LicensedData stub | Authorized logged-in competitor pages; licensed feed (pending owner docs) | No API for competitor-price collection. Manual entry is built (014a2a); the licensed feed is a stub until the owner supplies provider docs; per-site owner enablement and portal terms review required before 014b. |
 | WhatsApp | ChannelAdapter | Mock (outbox folder) | WhatsApp Business Cloud API | Needs Meta business verification, approved templates, opt-in. |
 | Email | ChannelAdapter | Mailpit | SMTP/SES + IMAP/Gmail API | SPF/DKIM/DMARC; unsubscribe header on marketing mail. |
 | SMS | ChannelAdapter | Mock | Provider with DLT registration | Indian rules: DLT + DND scrub. Low priority. |

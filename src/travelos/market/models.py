@@ -60,6 +60,14 @@ class ObservationStatus(StrEnum):
     UNAVAILABLE = "unavailable"
 
 
+class FetchStatus(StrEnum):
+    """The outcome of one adapter run, before any price is compared."""
+
+    OK = "ok"
+    BLOCKED = "blocked"
+    UNAVAILABLE = "unavailable"
+
+
 class ComparabilityAttribute(StrEnum):
     ROUTE = "route"
     DATES = "dates"

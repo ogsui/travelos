@@ -1,5 +1,13 @@
-"""Competitor price comparability and reference selection (task 014)."""
+"""Competitor prices: adapters, comparability and reference selection (task 014)."""
 
+from travelos.market.adapters import (
+    CompetitorFetch,
+    CompetitorPriceAdapter,
+    LicensedDataAdapter,
+    ManualEntryAdapter,
+    competitor_observations,
+    fetch_competitor_prices,
+)
 from travelos.market.comparability import (
     DEFAULT_COMPARISON_POLICY,
     ComparisonResult,
@@ -21,6 +29,7 @@ from travelos.market.models import (
     ComparisonRejection,
     ComparisonWarning,
     CompetitorPrice,
+    FetchStatus,
     ObservationStatus,
 )
 
@@ -36,12 +45,19 @@ __all__ = [
     "ComparisonRejection",
     "ComparisonResult",
     "ComparisonWarning",
+    "CompetitorFetch",
     "CompetitorPrice",
+    "CompetitorPriceAdapter",
+    "FetchStatus",
+    "LicensedDataAdapter",
+    "ManualEntryAdapter",
     "ObservationStatus",
     "RejectedObservation",
     "TrustedObservation",
     "assess_comparability",
     "compare_competitor_prices",
+    "competitor_observations",
+    "fetch_competitor_prices",
     "median_paise",
     "normalise_route",
 ]

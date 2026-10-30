@@ -37,7 +37,7 @@ Python 3.12, FastAPI (sync endpoints), SQLAlchemy 2 + Alembic, PostgreSQL 16, Re
 | conversation | sales/support drafting, handoff rules, follow-up cadences |
 | suppliers | normalized models, simulator, registry, parallel search, snapshots, authorized portal adapters |
 | packages | deterministic itinerary builder, occupancy/age rules, persisted itineraries, option tiers |
-| market | competitor comparability and reference price (adapters and persistence pending 014a2/014b) |
+| market | competitor comparability, reference price, manual and licensed-data adapters (persistence and portals pending 014a2b/014b) |
 | pricing | deterministic price engine, rules |
 | quotes | quote revisions, PDFs, acceptance |
 | payments | gateway adapter, schedules, reconciliation |

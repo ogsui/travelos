@@ -20,14 +20,16 @@ Phase 2 · Depends on: 007, 012 · Requirements: MKT-1, MKT-2, MKT-3, MKT-4
 
 ## Split (agreed 2026-10-27)
 - 014a1 (delivered): pure `market` comparability domain. `ComparabilityBasis` / `CompetitorPrice` / `ComparabilityAssessment`, six scored attributes, identity refusals, unknown-detail cap, median reference with MAD outlier filtering, 44 unit tests including two hypothesis properties. No persistence, adapter or portal code.
-- 014a2 (remaining): `CompetitorPriceAdapter` interface, ManualEntry adapter, LicensedData stub, comparator persistence (`competitor_snapshots`, migration), append-only store, per-site feature flags OFF by default, throttle/cache helpers.
+- 014a2a (delivered): `CompetitorPriceAdapter` interface, `ManualEntryAdapter` (dashboard hook, validated entries), `LicensedDataAdapter` stub, `fetch_competitor_prices` / `competitor_observations` with per-adapter failure isolation and exception-type-only details. 18 unit tests. No persistence, flags, cache or portal code.
+- 014a2b (remaining): comparator persistence (`competitor_snapshots`, migration), append-only store, per-site feature flags OFF by default, throttle/cache helpers.
 - 014b (blocked): authorized logged-in page collection (Playwright, isolated worker), fixture parsers and the operator pause/resume flow. Needs the owner's per-portal authorization and terms review in `docs/DECISIONS.md`.
 - MKT-4 seasonality/demand signals from the agency's own history are not started; they belong to a later slice once quoting history exists.
 
 ## Acceptance criteria
-- Portal failure never blocks quoting (test). Done for the scoring path in 014a1; the portal path is 014b.
-- Rate limit and cache tests. 014a2/014b.
+- Portal failure never blocks quoting (test). Done for the scoring path in 014a1; a failing adapter is covered in 014a2a; the portal path is 014b.
+- Rate limit and cache tests. 014a2b/014b.
 - Comparability unit tests. Done (014a1).
+- Adapter failure isolation and no-leak tests. Done (014a2a).
 - No challenge-solving or access-control-evasion code present (review check). Holds: no portal code exists yet.
 
 ## Human gates / approvals

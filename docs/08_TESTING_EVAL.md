@@ -350,8 +350,33 @@ the price ceiling:
 
 The defaults (threshold 80, 20 points of unknown detail, one-day tolerance,
 24-hour age, three-MAD outlier rule) are engineering placeholders for owner
-confirmation in `docs/BACKLOG.md`. There is no persistence, adapter, portal
-automation or currency conversion in this slice.
+confirmation in `docs/BACKLOG.md`. That slice contains no persistence, adapter,
+portal automation or currency conversion.
+
+## Competitor price adapters (task 014a2a)
+`tests/unit/test_market_adapters.py` (18 tests) pins the offline adapter
+contract:
+
+- `ManualEntryAdapter` returns exactly the entries staff recorded, refuses an
+  entry that names another site, refuses a blocked or unavailable observation,
+  and reports `unavailable` with a reason when nothing was recorded;
+- `LicensedDataAdapter` is a stub that always reports `unavailable` and never
+  raises, so no invented price can enter a quote before an owner-supplied
+  provider contract exists;
+- `fetch_competitor_prices` runs adapters in order, turns an exception into
+  `unavailable` whose detail carries only the exception type name (the test
+  asserts a token in the message does not leak), and keeps another site's prices
+  when one adapter fails; an empty adapter list returns an empty tuple;
+- `competitor_observations` flattens successful fetches in adapter order, and a
+  manual price set still produces a reference through the 014a1 comparator when a
+  sibling adapter fails;
+- `CompetitorFetch` invariants: a blank site, a naive fetch time, an `ok` fetch
+  with no prices and a failed fetch carrying prices are rejected; fetch times are
+  normalised to UTC.
+
+The adapters do not touch the network, a browser, the database or an LLM. Portal
+automation, per-site enablement flags, cache/throttle and persistence are 014a2b
+and 014b.
 
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
