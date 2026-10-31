@@ -61,6 +61,8 @@ defaulted:
   field. A typo must not look like an unfinished placeholder.
 - Percentages are converted once, at load time, to integer basis points (100 bps = 1%),
   so no float reaches the calculator. `Money` remains integer paise.
+- `pricing.margin_combination` is required owner data: `max` treats `min_paise` as a
+  floor on the percentage margin, `sum` adds the two. The engine never picks one.
 - The file carries a `version` and the loader returns a sha256 `source_hash` of the exact
   bytes read, so a stored calculation can name the rule file it used. Database-backed
   versioning/approval (`pricing_rule_sets`) is task 015c.
@@ -69,12 +71,38 @@ defaulted:
   there also yields `NEEDS_CONFIG`.
 
 The shipped file is intentionally all-placeholder, so the system cannot quote a customer
-price until the owner fills it in. This slice does not calculate anything; the calculator
-is 015b.
+price until the owner fills it in. This section describes rule loading only; the price
+assembly is 015b2.
+
+## Exact primitives (task 015b1)
+`pricing/arithmetic.py` and `pricing/tax.py` contain the arithmetic the assembly step
+(015b2) uses. There are no floats, no LLM calls and no policy defaults:
+
+- **FX.** An `FxSnapshot` stores an exact rational rate (`numerator / denominator`, quote
+  units per base unit), the observation time and source. `convert` multiplies by the rate
+  and the configured forex buffer, rounds half-up once, and refuses a mismatched
+  currency. A missing or stale snapshot is the caller's refusal, not an identity rate.
+- **Rounding.** `round_money` implements nearest/up/down to a configured step;
+  `round_not_below` raises the rounded price to the next step at or above the floor, so
+  rounding can never make a price cross the floor.
+- **Margins.** A percentage always applies to the supplier total. `margin_band` returns
+  minimum/target/cap using the owner's `margin_combination`: `max` treats `min_paise` as
+  a floor on the percentage, `sum` adds it. If an absolute floor is above the percentage
+  cap the result is `FLOOR_ABOVE_CAP`, not a silently clamped price.
+- **Taxes.** A `TaxTable` is a versioned, accountant-approved set of rows keyed by
+  product, GST basis and optional value slab. `resolve_tax` produces a `TaxLine` only
+  when exactly one approved row matches; otherwise the status is `UNAPPROVED`,
+  `NOT_CONFIGURED` or `AMBIGUOUS` and no zero is assumed. A `not_applicable` product
+  still needs an explicit zero-rated row. TCS rows are not modelled yet; enabling TCS
+  must refuse to quote until the accountant's TCS table exists.
+
+Synthetic values in tests are engineering fixtures, not Indian tax advice or owner
+margins. The real table must be supplied and approved by the accountant before 015b2 can
+produce a customer price.
 
 ## Test requirements
 Property tests (hypothesis): determinism; recommended >= floor unless status flagged; monotonic in supplier cost; line items sum exactly to totals; rounding never crosses the floor; tax never negative and always traceable to a table row; no float types in the module (static test); FX conversion round-trips within tolerance rules.
 Golden tests: >= 30 hand-checked scenarios supplied by the owner/accountant (family package, corporate multi-city, group, international flight with TCS case, hotel-only, visa-only, refundable vs non-refundable).
 
 ## Open decisions (owner/accountant must answer before task 015 is "done"; see `11_BUSINESS_RULES_INTERVIEW.md`)
-Margin structure per product; minimum margin; discount budgets; rounding; GST treatment per product (commission vs principal basis); TCS applicability and thresholds; gateway fee policy; forex buffer; maximum quote validity.
+Margin structure per product; minimum margin; whether percentages apply to supplier cost (current reading) or selling price; the fixed/percentage combination (`margin_combination`); discount budgets; rounding; GST treatment per product (commission vs principal basis); TCS applicability, thresholds and base; the accountant-approved tax table; gateway fee rate and policy; forex buffer and rate source; maximum quote validity; revalidation tolerance; 30 hand-checked golden scenarios.

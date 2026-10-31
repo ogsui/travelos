@@ -26,6 +26,7 @@ pricing:
   revalidation_tolerance: {absolute_paise: null, percent: null}
   forex_buffer_percent: null
   gateway_fee_policy: null   # passthrough | absorb
+  margin_combination: null   # ACCOUNTANT/OWNER: max | sum (fixed min_paise + percent)
   margins:                   # per product_type; fill every type you sell
     flight_domestic:      {min_paise: null, min_percent: null, target_percent: null, max_percent: null}
     flight_international: {min_paise: null, min_percent: null, target_percent: null, max_percent: null}

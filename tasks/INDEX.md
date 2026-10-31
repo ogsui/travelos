@@ -39,7 +39,8 @@ Run in order. `/task NNN` in OpenCode. Review, commit, then start a fresh sessio
 | 014 | Competitor price adapters | 2 | 007, 012 |
 | 015 | Deterministic pricing engine | 2 | 012, 013, 014 |
 | 015a | Pricing rule schema, YAML loader and NEEDS_CONFIG | 2 | 015 |
-| 015b | Deterministic price calculator and golden/property tests | 2 | 015a, 012, 013, 014 |
+| 015b1 | Exact FX, rounding, margin-band and tax-table primitives | 2 | 015a |
+| 015b2 | Quote assembly, statuses, explanations and scenario tests | 2 | 015b1, 012, 013, 014 |
 | 015c | Pricing persistence: rule sets, tax tables, FX and calculations | 2 | 015b, 002 |
 | 015d | Competitor ceiling and approval routing | 2 | 015c, 005, 014 |
 | 016 | Quotes, PDFs, acceptance, follow-ups | 2 | 005, 009, 015 |

@@ -184,6 +184,7 @@ def _pricing_gaps(pricing: RawPricingSection) -> list[ConfigGap]:
     )
     _add(gaps, "pricing.forex_buffer_percent", pricing.forex_buffer_percent)
     _add(gaps, "pricing.gateway_fee_policy", pricing.gateway_fee_policy)
+    _add(gaps, "pricing.margin_combination", pricing.margin_combination)
 
     for product in PricingProduct:
         prefix = f"pricing.margins.{product.value}"
@@ -297,6 +298,7 @@ def _build_ruleset(raw: RawBusinessRules) -> PricingRuleSet:
                 "pricing.forex_buffer_percent",
             ),
             gateway_fee_policy=_require(pricing.gateway_fee_policy, "pricing.gateway_fee_policy"),
+            margin_combination=_require(pricing.margin_combination, "pricing.margin_combination"),
             margins=margins,
             segment_discount_budget_bps=segment_budgets,
             competitor=CompetitorPolicy(

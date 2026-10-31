@@ -447,6 +447,25 @@ margin or tax value:
 - a YAML syntax error reports a config error without echoing the file body, and a
   non-mapping root is refused.
 
+## Pricing arithmetic and tax tables (task 015b1)
+`tests/unit/test_pricing_arithmetic.py` and `tests/unit/test_pricing_tax.py` (58 tests
+together with the 015a loader tests) pin the exact primitives with synthetic rates:
+
+- FX is an exact rational plus a basis-point buffer and rounds half-up once; identity
+  rates preserve the amount, conversion is monotonic, the result is within half a paise
+  of the exact rational, and a currency mismatch is refused;
+- nearest/up/down rounding is a multiple of the step and within one step of the input;
+  `round_not_below` raises to the next step rather than crossing the floor;
+- a `max` margin treats `min_paise` as a floor on the percentage, `sum` adds it, the
+  target is lifted to the floor, and a floor above the cap returns `FLOOR_ABOVE_CAP`
+  instead of a clamped price; generated bands stay ordered and monotonic;
+- a tax line is produced only for exactly one approved row; an unapproved table, a
+  missing product/basis row, or a mismatched basis is `NEEDS_CONFIG`, never zero; value
+  slabs are half-open, overlapping slabs and duplicate references are refused when the
+  table is built, and `not_applicable` requires an explicit zero-rated row;
+- a static AST scan rejects float constants, `/` division and `float`/`round` calls in
+  `src/travelos/pricing`.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

@@ -21,6 +21,7 @@ from travelos.pricing.models import (
     CustomerSegment,
     GatewayFeePolicy,
     GstBasis,
+    MarginCombination,
     PricingProduct,
     RoundingMode,
     RuleStatus,
@@ -58,6 +59,7 @@ def complete_rules() -> dict[str, Any]:
             "revalidation_tolerance": {"absolute_paise": 50_000, "percent": 2.0},
             "forex_buffer_percent": 1.5,
             "gateway_fee_policy": "passthrough",
+            "margin_combination": "max",
             "margins": margins,
             "segments_discount_budget_percent": {segment.value: 2.0 for segment in CustomerSegment},
             "competitor": {
@@ -110,6 +112,7 @@ def test_a_complete_file_loads_into_integer_basis_points(tmp_path: Path) -> None
     assert rules.revalidation.percent_bps == 200
     assert rules.forex_buffer_bps == 150
     assert rules.gateway_fee_policy is GatewayFeePolicy.PASSTHROUGH
+    assert rules.margin_combination is MarginCombination.MAX
     assert rules.segment_discount_budget_bps[CustomerSegment.NEW] == 200
     assert rules.competitor.max_age == timedelta(minutes=1_440)
     assert rules.competitor.min_comparability == 80
@@ -140,6 +143,7 @@ def test_the_shipped_config_is_still_a_placeholder() -> None:
     fields = {gap.field for gap in result.gaps}
     assert "pricing.rounding.mode" in fields
     assert "pricing.margins.flight_domestic.min_paise" in fields
+    assert "pricing.margin_combination" in fields
     assert "tax.tax_table_version" in fields
 
 
@@ -180,6 +184,15 @@ def test_a_single_missing_margin_field_is_reported_precisely(tmp_path: Path) -> 
 
     assert result.status is RuleStatus.NEEDS_CONFIG
     assert [gap.field for gap in result.gaps] == ["pricing.margins.flight_domestic.min_paise"]
+
+
+def test_a_missing_margin_combination_is_a_gap(tmp_path: Path) -> None:
+    data = complete_rules()
+    del data["pricing"]["margin_combination"]
+
+    result = load_pricing_rules(write_rules(tmp_path, data))
+
+    assert [gap.field for gap in result.gaps] == ["pricing.margin_combination"]
 
 
 def test_a_missing_segment_budget_is_a_gap(tmp_path: Path) -> None:
@@ -265,6 +278,10 @@ def test_an_unknown_top_level_section_is_ignored(tmp_path: Path) -> None:
         (
             lambda data: data["pricing"].update({"currency": "USD"}),
             "currency",
+        ),
+        (
+            lambda data: data["pricing"].update({"margin_combination": "average"}),
+            "margin_combination",
         ),
     ],
 )

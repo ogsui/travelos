@@ -63,6 +63,17 @@ class GatewayFeePolicy(StrEnum):
     ABSORB = "absorb"
 
 
+class MarginCombination(StrEnum):
+    """How the fixed ``min_paise`` combines with percentage margins.
+
+    This is an owner decision, not an engineering default: ``max`` means the
+    larger of the fixed amount and the percentage, ``sum`` adds them.
+    """
+
+    MAX = "max"
+    SUM = "sum"
+
+
 class GstBasis(StrEnum):
     """How GST applies to this product. ``not_applicable`` must be explicit."""
 
@@ -138,6 +149,7 @@ class RawPricingSection(_StrictModel):
     )
     forex_buffer_percent: Percent | None = None
     gateway_fee_policy: GatewayFeePolicy | None = None
+    margin_combination: MarginCombination | None = None
     margins: dict[PricingProduct, RawMarginRule] = Field(default_factory=dict)
     segments_discount_budget_percent: dict[CustomerSegment, Percent | None] = Field(
         default_factory=dict
@@ -236,6 +248,7 @@ class PricingRuleSet(_StrictModel):
     revalidation: RevalidationTolerance
     forex_buffer_bps: Annotated[StrictInt, Field(ge=0, le=10_000)]
     gateway_fee_policy: GatewayFeePolicy
+    margin_combination: MarginCombination
     margins: dict[PricingProduct, MarginRule]
     segment_discount_budget_bps: dict[CustomerSegment, Annotated[StrictInt, Field(ge=0, le=10_000)]]
     competitor: CompetitorPolicy
