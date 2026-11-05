@@ -466,6 +466,41 @@ together with the 015a loader tests) pin the exact primitives with synthetic rat
 - a static AST scan rejects float constants, `/` division and `float`/`round` calls in
   `src/travelos/pricing`.
 
+## Quote assembly (task 015b2)
+`tests/unit/test_pricing_calculator.py` (23 tests) pins the assembly contract on a
+complete **synthetic** rule set (3%/8%/15% margins, 5% commission-basis GST, ₹1 rounding,
+168h validity):
+
+- a full synthetic fixture yields `ok` with floor 105250, target 108400 and cap 115750
+  paise, `recommended == customer_price`, `lines` summing exactly to the price, and an
+  explanation naming the tax row and margin bps;
+- gateway `passthrough` leaves floor/target/ceiling alone and adds the fee to the
+  customer price, `absorb` raises all three levels and keeps the customer price equal to
+  the target;
+- principal-basis GST taxes the whole price while `not_applicable` needs an explicit
+  zero-rated row;
+- a trusted competitor reference sets `ceiling = reference - undercut`; a ceiling below
+  the floor is `uncompetitive` with no customer price, a ceiling between floor and target
+  becomes the recommendation, and no reference falls back to the markup cap with a
+  warning;
+- an owner proposal below the floor is `below_floor` (priced, flagged for approval) and
+  above the ceiling is `uncompetitive`; a floor/ceiling pair that no rounding step can
+  satisfy is `uncompetitive` rather than an out-of-band price;
+- TCS enabled, an unapproved table, a missing product row, a missing FX snapshot, an
+  expired item and a fixed margin floor above the percentage cap all return
+  `needs_config` with a gap string, never a price;
+- a USD item converts through the exact snapshot plus the 150 bps buffer, and
+  `expires_at` is the sooner of the configured validity and the soonest item expiry;
+- generated inputs keep the invariant `floor <= customer_price <= ceiling` (when priced), a
+  rounded multiple of the step, `lines` summing to the customer price, and a supplier
+  cost too small for the fixed margin floor refuses with `needs_config` instead of a
+  price; a higher supplier cost never lowers the customer price; duplicate item
+  references or mixed item currencies are refused.
+
+These are engineering fixtures, not owner margins or accountant tax advice: production
+pricing stays `needs_config` until `config/business_rules.yaml` is filled in and the
+tax table is approved.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

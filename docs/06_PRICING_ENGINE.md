@@ -32,8 +32,11 @@ recommended_price   = clamp(target_price, floor_price, ceiling_price)
 - Rounding rules configurable (e.g. nearest Rs 10/50/100), applied last, never below floor.
 
 ## Outputs
-`PriceResult { floor, target, ceiling, recommended, customer_price, status, lines[], explanation[], rule_version, tax_table_version, snapshots[], fx_snapshot, warnings[] }`
-Every result is stored immutably in `price_calculations` and referenced by the quote revision.
+`PriceResult { floor, target, ceiling, recommended, customer_price, status, lines[], explanation[], warnings[], gaps[], rule_version, tax_table_version, expires_at }`
+Every result is stored immutably in `price_calculations` and referenced by the quote revision
+(task 015c; today the calculator only returns it). The result records the rule and tax-table
+versions but not the snapshot ids yet: `price_calculations` must cite the exact supplier
+and FX snapshots it used, which 015c adds.
 
 ## Competitor logic
 - Use only snapshots fetched within `max_age`, with comparability score >= threshold (same route/dates/pax/fare class/baggage/refundability).
@@ -99,6 +102,52 @@ assembly is 015b2.
 Synthetic values in tests are engineering fixtures, not Indian tax advice or owner
 margins. The real table must be supplied and approved by the accountant before 015b2 can
 produce a customer price.
+
+## Quote assembly (task 015b2)
+`pricing/calculator.py` turns a `PriceRequest` (rule set, tax table, item costs, segment,
+optional gateway fee, optional trusted competitor reference, optional proposed price, FX
+snapshots, `now`) into a `PriceResult`. It is pure: no I/O, no clock, no LLM, no float.
+
+Assembly order per item and per level (minimum / target / cap):
+
+```
+supplier   = convert(net + supplier_taxes)                  # FX snapshot + buffer, or INR
+margin     = margin_band(supplier, rule, combination)[level]
+tax_base   = margin                       # gst_basis = commission
+           | supplier + margin            # gst_basis = principal
+tax        = resolve_tax(table, product, basis, tax_base)
+level      = supplier + margin + tax
+```
+
+- `gateway_fee` is added inside floor/target/cap when the policy is `absorb` and to the
+  customer price only when it is `passthrough`, so the customer-facing total is always
+  `level + gateway` for passthrough and `level` for absorbed. The gateway **rate** is
+  owner data; callers pass the computed paise amount. The fee sits outside the GST base
+  until the accountant says otherwise.
+- `ceiling = max_markup_cap` when no trusted competitor reference is supplied (a warning
+  says so); otherwise `ceiling = min(cap, competitor_reference - undercut)`.
+- `recommended = clamp(target, floor, ceiling)` rounded with `round_not_below`, because
+  rounding must never cross the floor. If the nearest step would cross the ceiling, the
+  next lower step is used; if neither satisfies both bounds the status is
+  `UNCOMPETITIVE` rather than an out-of-band number.
+- `expires_at = min(now + quote_validity_hours, soonest item expiry)`.
+- `lines[]` sum exactly to `customer_price`; `explanation[]` names the FX rate and buffer,
+  the margin bps and combination, each tax row reference/table version and the rounding
+  rule. `rule_version` and `tax_table_version` are always recorded.
+
+Statuses:
+
+| Status | Meaning | Customer price |
+|---|---|---|
+| `ok` | A price exists between floor and ceiling | yes |
+| `below_floor` | An explicit `proposed_price` (owner/agent) is under the floor | yes, with a warning that owner approval is required |
+| `uncompetitive` | Floor above ceiling, or the proposal is above the trusted ceiling | **no** — owner decides |
+| `needs_config` | TCS enabled, expired/missing cost, missing FX snapshot, unapproved/absent/ambiguous tax row, margin floor above cap | **no**; `gaps[]` lists why |
+
+Discounts are deliberately not applied in this slice: a segment discount budget is only
+reported in the explanation, and any discount that could cross the floor belongs to the
+approval routing in 015d. `needs_config` results still carry `rule_version` and
+`tax_table_version` so the refusal is attributable.
 
 ## Test requirements
 Property tests (hypothesis): determinism; recommended >= floor unless status flagged; monotonic in supplier cost; line items sum exactly to totals; rounding never crosses the floor; tax never negative and always traceable to a table row; no float types in the module (static test); FX conversion round-trips within tolerance rules.
