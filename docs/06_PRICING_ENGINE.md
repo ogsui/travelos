@@ -33,11 +33,11 @@ recommended_price   = clamp(target_price, floor_price, ceiling_price)
 
 ## Outputs
 `PriceResult { floor, target, ceiling, recommended, customer_price, status, lines[], explanation[], warnings[], gaps[], rule_version, tax_table_version, expires_at }`
-Every result belongs in the immutable `price_calculations` table (schema in 015c1) and is
-referenced by the quote revision. The writer and active-version selection are 015c2; quote
-wiring is task 016, and today the calculator only returns the result. The result records the
-rule and tax-table versions but not the snapshot ids yet: 015c2 must cite the exact supplier
-and FX snapshots it used.
+Every result belongs in the immutable `price_calculations` table and is referenced by
+the quote revision. `PricingStore.record_calculation` writes it today; quote wiring is
+task 016. The result records the rule and tax-table versions but not the snapshot ids
+yet: 015c2 cites the policy versions, and the quote slice must still cite the exact
+supplier and FX snapshots it used.
 
 ## Competitor logic
 - Use only snapshots fetched within `max_age`, with comparability score >= threshold (same route/dates/pax/fare class/baggage/refundability).
@@ -69,8 +69,9 @@ defaulted:
   floor on the percentage margin, `sum` adds the two. The engine never picks one.
 - The file carries a `version` and the loader returns a sha256 `source_hash` of the exact
   bytes read, so a stored calculation can name the rule file it used. Database-backed
-  versioning/approval (`pricing_rule_sets`, `tax_rule_tables`) has its tables from 015c1;
-  the store and loader are 015c2.
+  versioning/approval (`pricing_rule_sets`, `tax_rule_tables`) has its tables from 015c1
+  and `PricingStore` from 015c2; a file importer and owner approval workflow are still
+  later work, so filling the YAML does not yet create an approved version by itself.
 - Tax **rates** are not in this file. `tax.tax_table_version`, `gst_basis_by_product` and
   the TCS reference point at the accountant-approved table loaded by 015c2; a placeholder
   there also yields `NEEDS_CONFIG`.
@@ -151,7 +152,7 @@ reported in the explanation, and any discount that could cross the floor belongs
 approval routing in 015d. `needs_config` results still carry `rule_version` and
 `tax_table_version` so the refusal is attributable.
 
-## Persistence (task 015c1)
+## Persistence (tasks 015c1/015c2)
 Four append-only tables (migration 0017) make a produced price reproducible and
 reviewable:
 
@@ -160,7 +161,7 @@ reviewable:
   `approved_at` and `active_from`. A correction is a newer version.
 - `tax_rule_tables` - one accountant-approved table per version, with the same hash and
   approval columns plus `approved_by_accountant` and `approved_on`. A syntactically
-  valid table is not an approval, so the store (015c2) must refuse one.
+  valid table is not an approval, so the store refuses one.
 - `fx_rates` - one observation per row as an exact rational (`numerator` /
   `denominator`, quote units per base unit) with `source` and `fetched_at`. No float or
   `numeric` column is introduced; a missing rate is never 1:1.
@@ -175,9 +176,22 @@ exact rules, tax table and rates it used. Check constraints keep status and mone
 consistent: a `needs_config` row carries no levels, and only `ok`/`below_floor` rows
 carry a recommended and customer price.
 
-This slice defines schema only. Loading a rule file or tax table into a version, choosing
-the active version, verifying the stored hash and writing a `PriceCalculationRecord` are
-task 015c2.
+`pricing/store.py` is the only writer. `PricingStore.save_rule_set` and
+`save_tax_table` store one verified version and audit the approval; the tax writer
+refuses `approved_by_accountant=False`. Reads (`active_rule_set`, `active_tax_table`)
+choose the highest version whose `active_from` is not after the caller's `now`, then
+recompute the canonical hash and parse the payload, so a payload edited behind the
+trigger's back is reported instead of used. `record_fx` keeps the exact rational and
+`latest_fx` returns the newest observation at or before `now` (optional `max_age`;
+there is no engineering default because the owner has not set a freshness rule).
+`record_calculation` re-verifies both cited versions, requires them to match the rule
+set, request and result, and stores the request inputs plus the full result. Every
+write goes through `AuditWriter`; no rules, tax rows or customer data are copied into
+the audit entry. There is no clock or network in the store: callers pass `now` and
+`fetched_at`, which keeps a stored calculation reproducible.
+
+`quote_revisions` does not exist yet (task 016), so a calculation either cites none
+(for a pricing preview) or a caller-supplied UUID that the quote slice must reconcile.
 
 ## Test requirements
 Property tests (hypothesis): determinism; recommended >= floor unless status flagged; monotonic in supplier cost; line items sum exactly to totals; rounding never crosses the floor; tax never negative and always traceable to a table row; no float types in the module (static test); FX conversion round-trips within tolerance rules.

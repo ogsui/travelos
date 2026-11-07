@@ -38,7 +38,7 @@ Python 3.12, FastAPI (sync endpoints), SQLAlchemy 2 + Alembic, PostgreSQL 16, Re
 | suppliers | normalized models, simulator, registry, parallel search, snapshots, authorized portal adapters |
 | packages | deterministic itinerary builder, occupancy/age rules, persisted itineraries, option tiers |
 | market | competitor comparability, reference price, adapters, append-only snapshot history and the per-site collection loop (portals pending 014b) |
-| pricing | rule loading with placeholder detection (`NEEDS_CONFIG`); exact FX/rounding/margin/tax primitives; deterministic quote assembly with statuses and explanations |
+| pricing | rule loading with placeholder detection (`NEEDS_CONFIG`); exact FX/rounding/margin/tax primitives; deterministic quote assembly with statuses and explanations; append-only persistence of approved rule sets, tax tables, FX observations and calculations |
 | quotes | quote revisions, PDFs, acceptance |
 | payments | gateway adapter, schedules, reconciliation |
 | booking | revalidation, booking orchestration, references |

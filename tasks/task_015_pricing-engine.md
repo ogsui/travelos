@@ -21,8 +21,8 @@ values, so it is delivered in four slices:
 | 015b1 | Exact FX conversion, rounding, margin bands and tax-table resolution | done; synthetic rates/rates only |
 | 015b2 | Quote assembly (floor/target/ceiling/recommended), statuses, explanations, property + scenario tests | done on synthetic fixtures; still blocked for production on owner margins, tax table/version, gateway policy, forex buffer, rounding, quote validity and the 30 golden scenarios |
 | 015c1 | Pricing persistence schema: append-only rule sets, tax tables, FX rates and price calculations | done; schema only, synthetic fixtures |
-| 015c2 | `PricingStore`: load/approve versions, verify canonical hashes, select the active version and write `price_calculations` | next |
-| 015d | Trusted competitor ceiling and BELOW_FLOOR/UNCOMPETITIVE approval routing | not started |
+| 015c2 | `PricingStore`: load/approve versions, verify canonical hashes, select the active version and write `price_calculations` | done; 22 PostgreSQL tests, synthetic fixtures |
+| 015d | Trusted competitor ceiling and BELOW_FLOOR/UNCOMPETITIVE approval routing | next |
 
 015a deliberately produces no price. `config/business_rules.yaml` contains only
 placeholders, so every load reports `NEEDS_CONFIG` and the engine must refuse to quote.
@@ -37,8 +37,12 @@ forex buffer, rounding and validity, and the accountant supplies an approved tax
 
 015c1 adds the four append-only tables from migration 0017 (`pricing_rule_sets`,
 `tax_rule_tables`, `fx_rates`, `price_calculations`) with 29 PostgreSQL schema and
-append-only tests. It stores nothing by itself: loading and approving a version, checking
-the canonical hash, selecting the active row and writing a calculation are 015c2.
+append-only tests. 015c2 adds `PricingStore` (22 tests): it stores owner-approved rule
+sets and accountant-approved tax tables under a canonical hash, re-verifies that hash on
+read, picks the highest version already in force, keeps FX as an exact rational and
+selects the newest observation, and records a calculation only when its cited versions
+match the request and result (22 tests). File ingestion, quote wiring and approval routing
+remain later work (016 and 015d).
 
 ## Scope
 - Implement docs/06 exactly: floor/target/ceiling/recommended, statuses (OK, BELOW_FLOOR, UNCOMPETITIVE), explanations, rounding, FX snapshots.

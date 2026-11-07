@@ -524,6 +524,27 @@ four append-only tables from migration 0017:
 The fixtures are synthetic version numbers, a fake 500 bps tax row and a fake 83.25 FX
 rate. They prove schema and fail-closed behaviour only, not real pricing data.
 
+## Pricing store (task 015c2)
+`tests/integration/test_pricing_store.py` (22 tests) pins the writer and reader:
+
+- a saved rule set round-trips, records the canonical sha256 and is returned by
+  `active_rule_set`; a duplicate version is refused;
+- the active policy is the highest version already in force, and a future
+  `active_from` is invisible until its moment;
+- a rule payload or tax row edited in the database fails hash verification instead of
+  being loaded;
+- an unapproved tax table is refused at write time, while an approved one round-trips
+  with its approval date and hash;
+- FX keeps the exact numerator/denominator, selects per currency pair, ignores an
+  observation from the future, and applies an optional `max_age`;
+- a calculation stores the request inputs, the full result, the cited ids and versions,
+  the levels, an optional quote-revision UUID, and can be read back;
+- a result or request whose versions do not match the cited rows is refused, as is a
+  rule set whose `tax_table_version` names a different table;
+- a `needs_config` result is stored with no prices and its gaps;
+- every write adds an audit entry without copying the policy payload, and a second
+  tenant cannot read the first tenant's rows.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|
