@@ -13,7 +13,7 @@ Phase 2 · Depends on: 012, 013, 014 · Requirements: PRC-1, PRC-2, PRC-3, PRC-4
 
 ## Split (015a-015d)
 The umbrella task is too large for one review and depends on owner/accountant money
-values, so it is delivered in four slices:
+values, so it is delivered in six slices:
 
 | Slice | Scope | State |
 |---|---|---|
@@ -22,7 +22,7 @@ values, so it is delivered in four slices:
 | 015b2 | Quote assembly (floor/target/ceiling/recommended), statuses, explanations, property + scenario tests | done on synthetic fixtures; still blocked for production on owner margins, tax table/version, gateway policy, forex buffer, rounding, quote validity and the 30 golden scenarios |
 | 015c1 | Pricing persistence schema: append-only rule sets, tax tables, FX rates and price calculations | done; schema only, synthetic fixtures |
 | 015c2 | `PricingStore`: load/approve versions, verify canonical hashes, select the active version and write `price_calculations` | done; 22 PostgreSQL tests, synthetic fixtures |
-| 015d | Trusted competitor ceiling and BELOW_FLOOR/UNCOMPETITIVE approval routing | next |
+| 015d | Trusted competitor ceiling and BELOW_FLOOR/UNCOMPETITIVE approval routing | done; 8 unit + 9 PostgreSQL tests, synthetic fixtures |
 
 015a deliberately produces no price. `config/business_rules.yaml` contains only
 placeholders, so every load reports `NEEDS_CONFIG` and the engine must refuse to quote.
@@ -41,8 +41,19 @@ append-only tests. 015c2 adds `PricingStore` (22 tests): it stores owner-approve
 sets and accountant-approved tax tables under a canonical hash, re-verifies that hash on
 read, picks the highest version already in force, keeps FX as an exact rational and
 selects the newest observation, and records a calculation only when its cited versions
-match the request and result (22 tests). File ingestion, quote wiring and approval routing
-remain later work (016 and 015d).
+match the request and result (22 tests). File ingestion and quote wiring remain later work
+(016); the owner routing is added by 015d below.
+
+015d adds `pricing/ceiling.py` and `pricing/routing.py`. The ceiling bridge runs the
+014a1 comparison with the rule set's `min_comparability` and `max_age`, returns the
+pre-undercut median of fresh comparable inliers (or an explained fallback), and never
+converts a non-INR basis. The router creates an owner `pricing.owner_decision` human
+task for `below_floor` and `uncompetitive`, audits the request, verifies the cited
+calculation and is idempotent while the task is open. It deliberately does not create an
+`approval_requests` row: the matrix row is LOCKED A0, so the approval service would deny
+it. Quoting still needs owner margins, an approved tax table, the owner's competitor
+confirmation and the 30 golden scenarios; quote wiring and the dashboard queue are 016
+and 017.
 
 ## Scope
 - Implement docs/06 exactly: floor/target/ceiling/recommended, statuses (OK, BELOW_FLOOR, UNCOMPETITIVE), explanations, rounding, FX snapshots.

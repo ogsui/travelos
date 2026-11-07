@@ -43,6 +43,7 @@ supplier and FX snapshots it used.
 - Use only snapshots fetched within `max_age`, with comparability score >= threshold (same route/dates/pax/fare class/baggage/refundability).
 - Ignore outliers (e.g. > 3 MAD from the median of comparable snapshots).
 - Missing/blocked data never blocks pricing; the ceiling falls back to `max_markup_cap_price` and a warning is attached.
+- `pricing/ceiling.py` (015d) binds this to the owner's `CompetitorPolicy`: `min_comparability` and `max_age` come from the active rule set, the reference is the median of the comparable inliers **before** the undercut, and a non-INR basis is refused because the quote is INR-only. `price_quote` still subtracts `undercut_paise` and clamps against the markup cap.
 
 ## Safety checks
 - Quote carries `expires_at = min(snapshot.expires_at, configured max validity)`.
@@ -192,6 +193,42 @@ the audit entry. There is no clock or network in the store: callers pass `now` a
 
 `quote_revisions` does not exist yet (task 016), so a calculation either cites none
 (for a pricing preview) or a caller-supplied UUID that the quote slice must reconcile.
+
+## Trusted competitor ceiling and owner routing (task 015d)
+`pricing/ceiling.py` turns stored competitor observations into the calculator's
+`competitor_reference`. `trusted_ceiling(basis, observations, policy=<rule set's
+competitor policy>, now=...)` runs the 014a1 comparison with the owner's
+`min_comparability` and `max_age`, and returns a `TrustedCeiling` with the
+pre-undercut median, the full `ComparisonResult`, the comparison warnings and a
+staff-readable detail. A missing, stale, blocked or incomparable set returns
+`reference=None` (the quote falls back to the markup cap with a warning), and a
+basis or reference that is not INR is never used. No currency conversion happens
+here, and no comparison weight is invented beyond the engineering defaults already
+recorded in `docs/BACKLOG.md`.
+
+`pricing/routing.py` handles the two statuses that need a human:
+`below_floor` (an explicit proposal under the floor) and `uncompetitive` (floor
+above ceiling, or a proposal above the trusted ceiling). The approval matrix has
+one LOCKED A0 row for both ("quote below profit floor / floor above ceiling"),
+encoded as `quote.below_floor`. A0 means the system may prepare data but a human
+performs the action, so the router does **not** create an `approval_requests` row
+(the approval service would correctly deny it). It creates an owner
+`human_tasks` row of type `pricing.owner_decision`, subject
+`price_calculation/<calculation id>`, priority `high`, due at the result's
+`expires_at` (the quote validity, not an invented SLA), and audits
+`pricing.owner_decision.requested` with the status and the integer-paise levels.
+
+`route_to_owner` refuses an unknown calculation, another tenant's calculation, a
+result whose status or policy versions disagree with the stored row, or a
+catalogue change that makes `quote.below_floor` anything other than a LOCKED
+owner-only action. It is idempotent while the task is `open`/`in_progress`, so a
+retried quote does not flood the queue. `ok` and `needs_config` are not routed:
+`ok` needs no decision, and `needs_config` has no price to decide.
+
+Routing is not called automatically by `record_calculation`; the quote slice
+(016) wires the two together, records which task/revision belongs to the
+calculation, and closes the loop when the owner decides. There is no dashboard
+queue for these tasks yet (017).
 
 ## Test requirements
 Property tests (hypothesis): determinism; recommended >= floor unless status flagged; monotonic in supplier cost; line items sum exactly to totals; rounding never crosses the floor; tax never negative and always traceable to a table row; no float types in the module (static test); FX conversion round-trips within tolerance rules.

@@ -16,7 +16,7 @@
 - `autonomy_metrics` (action_type, window, proposals, approved_unchanged, edited, rejected, incidents)
 - `idempotency_keys` (key, scope, response_hash, expires_at)
 - `outbox_events` (type, payload, status, attempts, available_at)
-- `human_tasks` (type, subject, assignee_role, due_at, priority, status) — dead letters, escalations, to-dos
+- `human_tasks` (type, subject, assignee_role, due_at, priority, status) - dead letters, escalations, to-dos, owner-only pricing decisions
 - `business_rule_versions` (yaml_hash, content, activated_by, activated_at)
 
 ## CRM & consent
@@ -47,6 +47,7 @@
 - `fx_rates` (base_currency, quote_currency, numerator, denominator, source, fetched_at) - append-only observation of one exact rational rate (no float, no numeric column). A missing or unusable rate is never treated as 1:1.
 - `price_calculations` (quote_revision_id, rule_set_id, tax_table_id, status ok|below_floor|uncompetitive|needs_config, currency, rule_version, tax_table_version, floor/target/ceiling/recommended/customer_price_paise, inputs JSONB, outputs JSONB) - immutable record of one calculation. `rule_set_id`/`tax_table_id` are RESTRICT foreign keys so the rule versions it cites cannot disappear; `quote_revision_id` gains its FK when `quote_revisions` lands (task 016). Check constraints keep status and prices consistent: a `needs_config` row has no prices, and only `ok`/`below_floor` rows carry a customer price.
 - `PricingStore` (task 015c2) is the only writer for these four tables. It hashes each rule/tax payload as canonical JSON, re-verifies the hash on read, refuses an unapproved tax table, selects the highest version whose `active_from` is due, and records each calculation against the exact cited versions.
+- `pricing/routing.py` (task 015d) routes `below_floor` and `uncompetitive` results to an owner `human_tasks` row (`pricing.owner_decision`, subject `price_calculation`, priority high, due at the quote's `expires_at`) and writes `pricing.owner_decision.requested`. It does not create an `approval_requests` row: the matrix action is A0/LOCKED, so the approval service would deny it. Routing is idempotent while the task is open and refuses a calculation that is unknown, belongs to another tenant, or disagrees with the result's status/versions.
 
 ## Quotes
 - `itineraries` (inquiry_id, option_tier value|standard|premium, trip_kind, start_date, end_date, currency, total_cost_paise, booked_rooms, party JSONB, occupancy JSONB, days JSONB) · `itinerary_items` (itinerary_id, position, component_type, snapshot_id, supplier, offer_id, quantity, unit_basis, start_date, end_date, day_index, cost_paise, currency, reasons JSONB, explanation, offer JSONB)

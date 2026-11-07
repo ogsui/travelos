@@ -545,6 +545,32 @@ rate. They prove schema and fail-closed behaviour only, not real pricing data.
 - every write adds an audit entry without copying the policy payload, and a second
   tenant cannot read the first tenant's rows.
 
+## Trusted competitor ceiling and owner routing (task 015d)
+`tests/unit/test_pricing_ceiling.py` (8 tests) pins the bridge from stored competitor
+observations to the calculator's reference:
+
+- the reference is the median of the comparable inliers before the undercut, and a
+  single trusted source is reported as a warning;
+- no observation, a stale observation, a below-threshold observation and an outlier
+  all behave as `compare_competitor_prices` specifies, with the rule set supplying
+  `min_comparability` and `max_age`;
+- a non-INR basis is refused rather than converted, and a mismatched observation
+  currency is rejected with `currency_mismatch`.
+
+`tests/integration/test_pricing_routing.py` (9 tests) pins the owner route:
+
+- a stored `below_floor` or `uncompetitive` calculation creates one
+  `pricing.owner_decision` owner task (priority high) and one
+  `pricing.owner_decision.requested` audit entry without copying margins;
+- `ok` and `needs_config` results create no task;
+- a retry reuses the open task, while an unknown calculation, another tenant's
+  calculation or a result that disagrees with the stored status is refused;
+- stored competitor prices flow through `trusted_ceiling` into an `uncompetitive`
+  result and then into the owner queue.
+
+The fixtures use synthetic 3%/8%/15% margins, a 5% tax row and fake competitor prices;
+they prove the routing contract, not real policy or market data.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|
