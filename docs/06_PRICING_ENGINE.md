@@ -33,10 +33,11 @@ recommended_price   = clamp(target_price, floor_price, ceiling_price)
 
 ## Outputs
 `PriceResult { floor, target, ceiling, recommended, customer_price, status, lines[], explanation[], warnings[], gaps[], rule_version, tax_table_version, expires_at }`
-Every result is stored immutably in `price_calculations` and referenced by the quote revision
-(task 015c; today the calculator only returns it). The result records the rule and tax-table
-versions but not the snapshot ids yet: `price_calculations` must cite the exact supplier
-and FX snapshots it used, which 015c adds.
+Every result belongs in the immutable `price_calculations` table (schema in 015c1) and is
+referenced by the quote revision. The writer and active-version selection are 015c2; quote
+wiring is task 016, and today the calculator only returns the result. The result records the
+rule and tax-table versions but not the snapshot ids yet: 015c2 must cite the exact supplier
+and FX snapshots it used.
 
 ## Competitor logic
 - Use only snapshots fetched within `max_age`, with comparability score >= threshold (same route/dates/pax/fare class/baggage/refundability).
@@ -68,9 +69,10 @@ defaulted:
   floor on the percentage margin, `sum` adds the two. The engine never picks one.
 - The file carries a `version` and the loader returns a sha256 `source_hash` of the exact
   bytes read, so a stored calculation can name the rule file it used. Database-backed
-  versioning/approval (`pricing_rule_sets`) is task 015c.
+  versioning/approval (`pricing_rule_sets`, `tax_rule_tables`) has its tables from 015c1;
+  the store and loader are 015c2.
 - Tax **rates** are not in this file. `tax.tax_table_version`, `gst_basis_by_product` and
-  the TCS reference point at the accountant-approved table loaded by 015c; a placeholder
+  the TCS reference point at the accountant-approved table loaded by 015c2; a placeholder
   there also yields `NEEDS_CONFIG`.
 
 The shipped file is intentionally all-placeholder, so the system cannot quote a customer
@@ -148,6 +150,34 @@ Discounts are deliberately not applied in this slice: a segment discount budget 
 reported in the explanation, and any discount that could cross the floor belongs to the
 approval routing in 015d. `needs_config` results still carry `rule_version` and
 `tax_table_version` so the refusal is attributable.
+
+## Persistence (task 015c1)
+Four append-only tables (migration 0017) make a produced price reproducible and
+reviewable:
+
+- `pricing_rule_sets` - one complete, owner-approved rule set per version, stored as
+  JSONB with the sha256 of its canonical JSON (`source_hash`), `approved_by`,
+  `approved_at` and `active_from`. A correction is a newer version.
+- `tax_rule_tables` - one accountant-approved table per version, with the same hash and
+  approval columns plus `approved_by_accountant` and `approved_on`. A syntactically
+  valid table is not an approval, so the store (015c2) must refuse one.
+- `fx_rates` - one observation per row as an exact rational (`numerator` /
+  `denominator`, quote units per base unit) with `source` and `fetched_at`. No float or
+  `numeric` column is introduced; a missing rate is never 1:1.
+- `price_calculations` - the input `PriceRequest` and the output `PriceResult` as JSONB,
+  the cited `rule_set_id`/`tax_table_id` and their versions, the status, and every
+  integer-paise level. `quote_revision_id` stays a plain nullable UUID until task 016
+  creates `quote_revisions`.
+
+UPDATE, DELETE and TRUNCATE are refused by ORM listeners (`AppendOnlyError`) and by the
+shared `travelos_block_append_only` trigger, so a quote can always be traced back to the
+exact rules, tax table and rates it used. Check constraints keep status and money
+consistent: a `needs_config` row carries no levels, and only `ok`/`below_floor` rows
+carry a recommended and customer price.
+
+This slice defines schema only. Loading a rule file or tax table into a version, choosing
+the active version, verifying the stored hash and writing a `PriceCalculationRecord` are
+task 015c2.
 
 ## Test requirements
 Property tests (hypothesis): determinism; recommended >= floor unless status flagged; monotonic in supplier cost; line items sum exactly to totals; rounding never crosses the floor; tax never negative and always traceable to a table row; no float types in the module (static test); FX conversion round-trips within tolerance rules.

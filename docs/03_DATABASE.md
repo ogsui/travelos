@@ -3,9 +3,9 @@
 ## Conventions
 - PostgreSQL 16. UUID primary keys (time-sortable). `tenant_id`, `created_at`, `updated_at` (UTC) on every business table.
 - Money: `<name>_paise BIGINT` + `currency CHAR(3)`. No float/numeric money columns (a test scans the models).
-- Enums stored as text with CHECK constraints. JSONB only for raw provider payloads and immutable snapshots.
+- Enums stored as text with CHECK constraints. JSONB for raw provider payloads, immutable snapshots and versioned policy payloads (pricing rules, tax rows, calculation inputs/outputs).
 - (enc) = field-level encrypted. PII never appears in logs or LLM prompts unredacted.
-- Append-only tables (`audit_log`, `llm_calls`, `price_snapshots`) have UPDATE/DELETE revoked or trigger-blocked. `requirements` is append-only at the ORM layer (see task 010c notes) until a DB trigger can coexist with the tenant-purge path. `outbox_events` is deliberately mutable: `status`, `attempts` and `available_at` move through the delivery state machine.
+- Append-only tables (`audit_log`, `llm_calls`, `price_snapshots`, `competitor_snapshots`, `pricing_rule_sets`, `tax_rule_tables`, `fx_rates`, `price_calculations`) have UPDATE/DELETE revoked or trigger-blocked. `requirements` is append-only at the ORM layer (see task 010c notes) until a DB trigger can coexist with the tenant-purge path. `outbox_events` is deliberately mutable: `status`, `attempts` and `available_at` move through the delivery state machine.
 - Every external write carries an `idempotency_key` (unique).
 
 ## Identity & platform
@@ -42,9 +42,10 @@
 - `supplier_searches` (inquiry_id, request_hash, params JSONB, status running|ok|partial|failed, started_at, finished_at, offer_count, failures JSONB) — one aggregated search run. Mutable only while it runs.
 - `price_snapshots` (supplier_id, search_id, offer_id, product_type, payload JSONB, net_paise, taxes_paise, currency, fare_rules JSONB, fetched_at, expires_at, request_hash) — immutable. A PostgreSQL trigger reuses `travelos_block_append_only`, so UPDATE/DELETE/TRUNCATE fail even from raw SQL; ORM listeners raise `AppendOnlyError` first. `expires_at` is capped by `SUPPLIER_SNAPSHOT_TTL_SECONDS`, so a longer supplier validity window cannot revive a stale price.
 - `competitor_snapshots` (site, query_hash, payload JSONB, basis JSONB, price_paise, currency, comparability_score, fetched_at, status ok|blocked|unavailable, detail) — append-only (ORM listeners + PostgreSQL trigger): a newer price is a newer row. `query_hash` is the canonical sha256 of the comparability basis; an `ok` row has a price and currency, a blocked/unavailable run has neither, so "no price" is recorded explicitly. Task 014a2b1.
-- `pricing_rule_sets` (version, rules JSONB, approved_by, active_from) · `tax_rule_tables` (version, rules JSONB, approved_by_accountant, active_from)
-- `price_calculations` (quote_revision_id, inputs JSONB, outputs JSONB, rule_version, explanation JSONB) — immutable
-- `fx_rates` (pair, rate, source, at)
+- `pricing_rule_sets` (version, rules JSONB, source_hash, approved_by, approved_at, active_from) - append-only (ORM listeners + PostgreSQL trigger); one row per complete, owner-approved rule set. `source_hash` is the sha256 of the canonical rules JSON, so a stored calculation can prove which rules it used. A correction is a newer version.
+- `tax_rule_tables` (version, rows JSONB, source_hash, approved_by_accountant, approved_on, approved_by, active_from) - append-only; one row per accountant-approved table version. A table is only stored when the accountant approved it; a syntactically valid table is not approval.
+- `fx_rates` (base_currency, quote_currency, numerator, denominator, source, fetched_at) - append-only observation of one exact rational rate (no float, no numeric column). A missing or unusable rate is never treated as 1:1.
+- `price_calculations` (quote_revision_id, rule_set_id, tax_table_id, status ok|below_floor|uncompetitive|needs_config, currency, rule_version, tax_table_version, floor/target/ceiling/recommended/customer_price_paise, inputs JSONB, outputs JSONB) - immutable record of one calculation. `rule_set_id`/`tax_table_id` are RESTRICT foreign keys so the rule versions it cites cannot disappear; `quote_revision_id` gains its FK when `quote_revisions` lands (task 016). Check constraints keep status and prices consistent: a `needs_config` row has no prices, and only `ok`/`below_floor` rows carry a customer price.
 
 ## Quotes
 - `itineraries` (inquiry_id, option_tier value|standard|premium, trip_kind, start_date, end_date, currency, total_cost_paise, booked_rooms, party JSONB, occupancy JSONB, days JSONB) · `itinerary_items` (itinerary_id, position, component_type, snapshot_id, supplier, offer_id, quantity, unit_basis, start_date, end_date, day_index, cost_paise, currency, reasons JSONB, explanation, offer JSONB)

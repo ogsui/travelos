@@ -37,6 +37,7 @@ BUSINESS_TABLES = {
     "customer_merge_history",
     "customers",
     "feature_flags",
+    "fx_rates",
     "human_tasks",
     "idempotency_keys",
     "inquiries",
@@ -46,12 +47,15 @@ BUSINESS_TABLES = {
     "message_drafts",
     "messages",
     "outbox_events",
+    "price_calculations",
     "price_snapshots",
+    "pricing_rule_sets",
     "requirements",
     "sessions",
     "supplier_searches",
     "suppliers",
     "suppression_list",
+    "tax_rule_tables",
     "travellers",
     "users",
     "workflow_timers",
@@ -439,6 +443,15 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
             "ix_workflow_timers_status_due",
             "ix_workflow_timers_subject",
         },
+        "pricing_rule_sets": {"ix_pricing_rule_sets_active"},
+        "tax_rule_tables": {"ix_tax_rule_tables_active"},
+        "fx_rates": {"ix_fx_rates_pair"},
+        "price_calculations": {
+            "ix_price_calculations_created",
+            "ix_price_calculations_rule_set",
+            "ix_price_calculations_tax_table",
+            "ix_price_calculations_quote_revision",
+        },
     }
     for table, names in expected_indexes.items():
         actual = {index["name"] for index in inspector.get_indexes(table)}
@@ -458,6 +471,8 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
         "requirements": {("tenant_id", "inquiry_id", "version")},
         "conversation_handoffs": {("human_task_id",)},
         "message_drafts": {("approval_id",)},
+        "pricing_rule_sets": {("tenant_id", "version")},
+        "tax_rule_tables": {("tenant_id", "version")},
     }
     for table, expected in expected_unique.items():
         actual = {tuple(c["column_names"]) for c in inspector.get_unique_constraints(table)}

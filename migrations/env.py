@@ -15,6 +15,7 @@ import travelos.core.models
 import travelos.crm.models
 import travelos.inquiry.models
 import travelos.llm.models
+import travelos.pricing.records
 import travelos.workflow.models  # noqa: F401  (registers workflow tables)
 from travelos.core.config import get_settings
 from travelos.core.db import Base

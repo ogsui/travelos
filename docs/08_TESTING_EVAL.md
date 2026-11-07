@@ -501,6 +501,29 @@ These are engineering fixtures, not owner margins or accountant tax advice: prod
 pricing stays `needs_config` until `config/business_rules.yaml` is filled in and the
 tax table is approved.
 
+## Pricing persistence schema (task 015c1)
+`tests/integration/test_pricing_schema.py` (29 tests) runs against PostgreSQL and pins the
+four append-only tables from migration 0017:
+
+- the documented columns exist on `pricing_rule_sets`, `tax_rule_tables`, `fx_rates` and
+  `price_calculations`, and the JSONB payloads (rules, tax rows, inputs, outputs) round-trip
+  unchanged;
+- a `(tenant_id, version)` pair cannot be reused on either versioned table, a source hash
+  must be 64 lowercase hex characters, a version must be >= 1, and `approved_by` must point
+  at a real user;
+- FX is stored as an exact rational with positive numerator and denominator and
+  three-letter currency codes, so no float or `numeric` column exists anywhere;
+- a calculation must cite an existing rule set and tax table (RESTRICT foreign keys), and
+  status/price checks hold: `needs_config` has no levels, a priced row needs all three
+  levels, only `ok`/`below_floor` carry recommended and customer prices, an
+  `uncompetitive` row carries none, and no level may be negative;
+- UPDATE, DELETE and TRUNCATE are refused by the ORM listeners and, from raw SQL, by the
+  PostgreSQL triggers (using a savepoint so the fixture row survives each attempt);
+- a correction is a new row: two versions coexist without mutating the earlier one.
+
+The fixtures are synthetic version numbers, a fake 500 bps tax row and a fake 83.25 FX
+rate. They prove schema and fail-closed behaviour only, not real pricing data.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

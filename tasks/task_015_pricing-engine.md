@@ -20,7 +20,8 @@ values, so it is delivered in four slices:
 | 015a | Rule schema, YAML loader, version hash and placeholder detection (`NEEDS_CONFIG`) | done; production file ships all-placeholder |
 | 015b1 | Exact FX conversion, rounding, margin bands and tax-table resolution | done; synthetic rates/rates only |
 | 015b2 | Quote assembly (floor/target/ceiling/recommended), statuses, explanations, property + scenario tests | done on synthetic fixtures; still blocked for production on owner margins, tax table/version, gateway policy, forex buffer, rounding, quote validity and the 30 golden scenarios |
-| 015c | Persistence: `pricing_rule_sets`, `tax_rule_tables`, `fx_rates`, immutable `price_calculations` | not started |
+| 015c1 | Pricing persistence schema: append-only rule sets, tax tables, FX rates and price calculations | done; schema only, synthetic fixtures |
+| 015c2 | `PricingStore`: load/approve versions, verify canonical hashes, select the active version and write `price_calculations` | next |
 | 015d | Trusted competitor ceiling and BELOW_FLOOR/UNCOMPETITIVE approval routing | not started |
 
 015a deliberately produces no price. `config/business_rules.yaml` contains only
@@ -33,6 +34,11 @@ from `docs/06_PRICING_ENGINE.md`, tested entirely on synthetic engineering fixtu
 (23 tests). It applies no discounts yet — that belongs to the 015d approval routing — and
 it cannot produce a production price until the owner supplies margins, gateway policy,
 forex buffer, rounding and validity, and the accountant supplies an approved tax table.
+
+015c1 adds the four append-only tables from migration 0017 (`pricing_rule_sets`,
+`tax_rule_tables`, `fx_rates`, `price_calculations`) with 29 PostgreSQL schema and
+append-only tests. It stores nothing by itself: loading and approving a version, checking
+the canonical hash, selecting the active row and writing a calculation are 015c2.
 
 ## Scope
 - Implement docs/06 exactly: floor/target/ceiling/recommended, statuses (OK, BELOW_FLOOR, UNCOMPETITIVE), explanations, rounding, FX snapshots.
