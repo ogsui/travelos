@@ -5,6 +5,8 @@ from travelos.quotes.errors import (
     QuoteGroupNotFoundError,
     QuoteGroupValidationError,
     QuoteNotFoundError,
+    QuotePresentationConfigError,
+    QuotePresentationError,
     QuotePricingError,
     QuoteStateError,
     QuoteValidationError,
@@ -24,6 +26,16 @@ from travelos.quotes.models import (
     acceptance_status,
     diff_revisions,
 )
+from travelos.quotes.presentation import (
+    Brand,
+    PaymentStage,
+    PresentationGap,
+    PresentationLoadResult,
+    PresentationStatus,
+    QuotePresentation,
+    Terms,
+    load_quote_presentation,
+)
 from travelos.quotes.records import (
     QuoteGroupOptionRecord,
     QuoteGroupRecord,
@@ -31,13 +43,31 @@ from travelos.quotes.records import (
     QuoteRecord,
     QuoteRevisionRecord,
 )
+from travelos.quotes.render import (
+    DayView,
+    FareRuleView,
+    ItemView,
+    OptionView,
+    QuoteDocument,
+    render_quote_html,
+)
 from travelos.quotes.store import QuoteStore, QuoteView
 
 __all__ = [
     "AcceptanceStatus",
+    "Brand",
+    "DayView",
+    "FareRuleView",
+    "ItemView",
     "LineChange",
     "LineDelta",
     "LineKind",
+    "OptionView",
+    "PaymentStage",
+    "PresentationGap",
+    "PresentationLoadResult",
+    "PresentationStatus",
+    "QuoteDocument",
     "QuoteError",
     "QuoteGroupDraft",
     "QuoteGroupNotFoundError",
@@ -50,6 +80,9 @@ __all__ = [
     "QuoteLine",
     "QuoteLineRecord",
     "QuoteNotFoundError",
+    "QuotePresentation",
+    "QuotePresentationConfigError",
+    "QuotePresentationError",
     "QuotePricingError",
     "QuoteRecord",
     "QuoteRevision",
@@ -60,6 +93,9 @@ __all__ = [
     "QuoteValidationError",
     "QuoteView",
     "RevisionDiff",
+    "Terms",
     "acceptance_status",
     "diff_revisions",
+    "load_quote_presentation",
+    "render_quote_html",
 ]

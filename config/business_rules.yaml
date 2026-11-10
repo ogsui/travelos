@@ -19,6 +19,24 @@ agency:
   languages: [en, hi, hinglish]
   working_hours: {start: null, end: null, days: []}
   brand_voice_samples: []   # paste 10-20 real messages/posts
+quote_presentation:   # OWNER/LEGAL: required before any customer quote can be rendered
+  timezone: Asia/Kolkata
+  brand:
+    display_name: null
+    legal_name: null
+    registered_address: null
+    gstin: null            # ACCOUNTANT
+    logo_path: null        # e.g. assets/logo.png, must stay inside config/
+    primary_color: null    # #RRGGBB
+    support_email: null
+    support_phone: null
+  terms:
+    version: null          # owner/legal approved version identifier
+    text: null             # full terms text supplied by the owner; never generated
+  payment_schedule:        # shares must add up to exactly 100%
+    - {label: null, percent: null, due: null}
+  visa:
+    source_note: null      # optional; blank renders "To be confirmed"
 pricing:
   currency: INR
   rounding: {mode: null, step_paise: null}

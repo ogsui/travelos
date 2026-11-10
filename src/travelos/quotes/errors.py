@@ -36,3 +36,11 @@ class QuoteGroupValidationError(QuoteValidationError):
 
 class QuoteStateError(QuoteError):
     """The quote's workflow state does not allow the requested change."""
+
+
+class QuotePresentationError(QuoteError):
+    """The owner's presentation rules are absent or cannot produce a document."""
+
+
+class QuotePresentationConfigError(QuotePresentationError):
+    """The presentation section is malformed or violates an invariant."""

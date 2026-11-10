@@ -620,6 +620,32 @@ a blank label are refused; labels are trimmed.
 The fixtures use synthetic inquiries, quotes and labels; they prove the grouping contract,
 not an owner tier rule or real customer data.
 
+## Quote presentation and HTML (task 016b2a)
+`tests/unit/test_quote_presentation.py` (17 tests) pins the fail-closed owner config:
+
+- a complete synthetic config loads, embeds a PNG logo as a data URI, converts 30/70 percent to
+  exact basis points and keeps the terms version/hash;
+- a missing file, missing section, every null or blank brand field and missing terms/payment
+  stages are reported as `NEEDS_CONFIG`, never defaulted;
+- a schedule that does not add up to 100%, a percent with too many decimals, an invalid colour,
+  email or timezone, an unknown key, a path-traversal logo and a non-PNG/JPEG logo are refused;
+- a missing logo asset is a reported gap, so the renderer fails closed rather than shipping a
+  broken document.
+
+`tests/unit/test_quote_render.py` (21 tests) pins the pure HTML renderer:
+
+- the document model accepts only the stored total plus `tax` lines; margin/supplier/gateway/
+  rounding/proposal lines are refused at validation, so they cannot reach the renderer;
+- totals and tax lines are shown with the existing `Money.format` output;
+- every dynamic value is escaped, including brand, option label, item name, tax description and
+  terms text, and the output contains no `<script>` or external resource;
+- group options render in staff order, expired quotes are marked, the owner payment schedule,
+  terms version/text, visa note, fare rules and snapshot references are present, and no snapshot
+  claim is made when no reference is stored.
+
+All fixtures are synthetic; the tests prove fail-closed and escaping behaviour, not owner wording
+or Indian tax/legal treatment.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

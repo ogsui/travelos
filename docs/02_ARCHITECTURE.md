@@ -39,7 +39,7 @@ Python 3.12, FastAPI (sync endpoints), SQLAlchemy 2 + Alembic, PostgreSQL 16, Re
 | packages | deterministic itinerary builder, occupancy/age rules, persisted itineraries, option tiers |
 | market | competitor comparability, reference price, adapters, append-only snapshot history and the per-site collection loop (portals pending 014b) |
 | pricing | rule loading with placeholder detection (`NEEDS_CONFIG`); exact FX/rounding/margin/tax primitives; deterministic quote assembly with statuses and explanations; trusted competitor ceiling from stored snapshots; append-only persistence of approved rule sets, tax tables, FX observations and calculations; owner-only routing for below-floor and uncompetitive prices |
-| quotes | quote/revision persistence with exact integer-paise lines copied from a stored `ok` calculation, append-only revisions/lines, revision diffs and the acceptance window (016a); staff-labelled, append-only multi-option groups with no invented tier ranking (016b1); branded HTML/PDF rendering (016b2), approval-gated send, tracking and follow-ups (016c-016d) |
+| quotes | quote/revision persistence with exact integer-paise lines copied from a stored `ok` calculation, append-only revisions/lines, revision diffs and the acceptance window (016a); staff-labelled, append-only multi-option groups with no invented tier ranking (016b1); fail-closed owner presentation rules and pure HTML rendering that shows the total and only tax lines (016b2a); DB document builder and PDF adapter (016b2b); approval-gated send, tracking and follow-ups (016c-016d) |
 | payments | gateway adapter, schedules, reconciliation |
 | booking | revalidation, booking orchestration, references |
 | billing | invoices, ledger, exports, tax tables |

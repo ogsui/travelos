@@ -13,13 +13,14 @@ Phase 2 · Depends on: 005, 009, 015 · Requirements: QUO-1, QUO-2, QUO-3, SALES
 - Owner-approved follow-up templates (016d) and an owner decision on multi-option quoting.
 
 ## Split (owner-approved 2026-11-10)
-The umbrella task exceeds the ~800-line review budget, so it is delivered in four slices, one commit each, in this order.
+The umbrella task exceeds the ~800-line review budget, so it is delivered in the slices below, one commit each, in this order.
 
 | Slice | Scope | State |
 |---|---|---|
 | **016a** | Quote/revision persistence: `quotes`, `quote_revisions`, `quote_lines` (migration 0018), exact copy of an `ok` calculation, revision numbering, expiry, diff, draft-only revisions, pure acceptance predicate | **done** |
 | **016b1** | Staff-labelled, append-only multi-option groups (`quote_groups`, `quote_group_options`, migration 0019), ordered labels, same-inquiry/one-group rules. No tier ranking is inferred | **done** |
-| **016b2** | Branded HTML/PDF rendering (WeasyPrint) over one quote or a group: total + tax lines only, fare rules/refundability, visa notes "to be confirmed", payment schedule, snapshot refs. Blocked until the owner supplies brand assets and T&Cs; it must fail closed (`NEEDS_CONFIG`) rather than invent legal text | pending |
+| **016b2a** | Fail-closed owner presentation config (`quote_presentation`) and pure escaped HTML rendering: total + tax lines only, fare rules/refundability, visa notes "to be confirmed", payment schedule, snapshot refs. Reports `NEEDS_CONFIG` rather than invent brand, legal or payment text | **done** |
+| **016b2b** | DB document builder over one quote or a staff-labelled group, WeasyPrint PDF adapter, `quote.rendered` audit and integration tests. Depends on 016b2a; still blocked on the owner's real brand assets, T&Cs and payment schedule for production output | pending |
 | **016c** | Approval-gated send (`quote.send` A1), consent/mode/kill-switch gates, `quote_events`, accept token (hash only), acceptance endpoint refusing expired/stale revisions, owner-approved below-floor entry | pending |
 | **016d** | Re-quote flow on plan changes with a reviewer diff, owner-approved follow-up templates, consent-aware cadence, stop on accept/reply/STOP, timer/outbox wiring | pending |
 
