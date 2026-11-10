@@ -65,7 +65,7 @@ class ItemView(_FrozenModel):
     city: Annotated[str, Field(min_length=1, max_length=120)]
     start_date: date
     end_date: date | None = None
-    quantity: Annotated[int, Field(ge=1, le=60)]
+    quantity: Annotated[int, Field(ge=1, le=200)]
     unit_basis: Literal["traveller", "room", "group"]
     snapshot_ref: Annotated[str, Field(min_length=1, max_length=100)] | None = None
     fare_rule: FareRuleView
@@ -90,14 +90,14 @@ class DayView(_FrozenModel):
 class OptionView(_FrozenModel):
     """One customer-safe option: total plus only the stored tax lines."""
 
-    label: Annotated[str, Field(min_length=1, max_length=80)]
+    label: Annotated[str, Field(min_length=1, max_length=80)] | None = None
     quote_id: UUID
     revision_number: Annotated[int, Field(ge=1)]
     total: Money
     tax_lines: tuple[QuoteLine, ...] = ()
     start_date: date
     end_date: date
-    travellers: Annotated[int, Field(ge=1, le=60)]
+    travellers: Annotated[int, Field(ge=1, le=200)]
     days: Annotated[tuple[DayView, ...], Field(min_length=1)]
     snapshot_refs: tuple[Annotated[str, Field(min_length=1, max_length=100)], ...] = ()
 
@@ -147,6 +147,10 @@ class QuoteDocument(_FrozenModel):
             raise ValueError("a group document needs a title")
         if self.kind == "quote" and self.title is not None:
             raise ValueError("a single quote document cannot carry a group title")
+        if self.kind == "group" and any(option.label is None for option in self.options):
+            raise ValueError("every option in a group document needs a staff label")
+        if self.kind == "quote" and any(option.label is not None for option in self.options):
+            raise ValueError("a single quote document cannot label its option")
         if sum(stage.percent_bps for stage in self.payment_schedule) != 10_000:
             raise ValueError("the payment schedule must add up to 100%")
         try:
@@ -273,10 +277,10 @@ def _option(option: OptionView) -> str:
         else ""
     )
     traveller_word = "traveller" if option.travellers == 1 else "travellers"
+    heading = f"<h3>{_e(option.label)}</h3>\n" if option.label is not None else ""
     return f"""
 <section class="option">
-<h3>{_e(option.label)}</h3>
-<p class="meta">{_date(option.start_date)} {_DASH} {_date(option.end_date)}
+{heading}<p class="meta">{_date(option.start_date)} {_DASH} {_date(option.end_date)}
  · {option.travellers} {traveller_word} · Revision {option.revision_number}
  · Quote {_e(str(option.quote_id))}</p>
 <ul>{days}</ul>

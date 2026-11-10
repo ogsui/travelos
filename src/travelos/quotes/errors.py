@@ -44,3 +44,11 @@ class QuotePresentationError(QuoteError):
 
 class QuotePresentationConfigError(QuotePresentationError):
     """The presentation section is malformed or violates an invariant."""
+
+
+class QuoteDocumentError(QuoteError):
+    """A stored quote cannot be turned into a customer document."""
+
+
+class QuotePdfUnavailableError(QuoteDocumentError):
+    """PDF output was requested but the optional WeasyPrint adapter is absent."""

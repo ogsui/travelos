@@ -27,6 +27,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+pdf = [
+    "weasyprint>=62,<67",
+]
 dev = [
     "pytest>=8.3,<10",
     "pytest-cov>=6,<8",
@@ -87,5 +90,5 @@ mypy_path = "src"
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*"]
+module = ["celery.*", "weasyprint.*"]
 ignore_missing_imports = true

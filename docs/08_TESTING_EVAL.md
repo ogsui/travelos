@@ -646,6 +646,31 @@ not an owner tier rule or real customer data.
 All fixtures are synthetic; the tests prove fail-closed and escaping behaviour, not owner wording
 or Indian tax/legal treatment.
 
+### Document building and PDF (task 016b2b)
+`tests/integration/test_quote_documents.py` (9 tests) builds documents from real stored rows
+inside the rolled-back PostgreSQL transaction:
+
+- a single quote document carries the revision's exact total and only its `tax` lines; the
+  itinerary items, visa note and owner terms are present and no margin description appears in the
+  HTML;
+- a render writes exactly one `quote.rendered` audit row naming the revision numbers, totals,
+  format and the presented config hash, and copies no customer contact data;
+- an incomplete owner config is refused before any audit row is written;
+- a group document keeps the staff labels and order, uses the group title and the earliest member
+  expiry, and marks an expired quote;
+- an unknown quote or group is refused; requested PDF bytes are returned but every
+  `quote_revisions.pdf_ref` stays null; GSTIN is optional; a quote without an inquiry renders for
+  staff preview.
+
+`tests/unit/test_quote_pdf.py` (3 tests) pins the optional adapter with a fake `weasyprint`
+module: an absent extra is a clear `QuotePdfUnavailableError`, the HTML string is passed through
+unchanged, and a non-PDF response is refused.
+
+The fixtures are synthetic price rules, tax rates, offers, brand text and labels; they prove the
+builder copies and refuses correctly, not owner wording or Indian tax/legal treatment.
+The PDF path uses a fake engine because WeasyPrint is an optional extra and is not installed in
+the test environment.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

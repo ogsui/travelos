@@ -102,7 +102,7 @@ def item(**overrides: object) -> ItemView:
 
 def option(
     *,
-    label: str = "Option A",
+    label: str | None = None,
     quote_id: UUID = FIRST_QUOTE,
     tax_lines: tuple[QuoteLine, ...] | None = None,
     **overrides: object,
@@ -183,6 +183,8 @@ def test_every_dynamic_value_is_html_escaped() -> None:
     hostile = "<script>alert('x')</script>"
     html = render_quote_html(
         document(
+            kind="group",
+            title="Synthetic trip options",
             brand=brand(display_name=hostile),
             terms=terms(text="<img src=x onerror=alert(1)>\nSecond line."),
             options=(option(label="A & B <b>", tax_lines=(tax_line(description="<b>GST</b>"),)),),
@@ -297,6 +299,16 @@ def test_a_group_needs_a_title() -> None:
 def test_a_single_quote_cannot_carry_a_group_title() -> None:
     with pytest.raises(ValidationError, match="title"):
         document(kind="quote", title="Synthetic trip options")
+
+
+def test_a_group_option_needs_a_staff_label() -> None:
+    with pytest.raises(ValidationError, match="staff label"):
+        document(kind="group", title="Synthetic trip options", options=(option(),))
+
+
+def test_a_single_quote_cannot_label_its_option() -> None:
+    with pytest.raises(ValidationError, match="cannot label"):
+        document(options=(option(label="Option A"),))
 
 
 def test_the_payment_schedule_must_add_up_to_100_percent() -> None:

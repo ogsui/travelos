@@ -1,10 +1,13 @@
-"""Quote revisions, PDFs and acceptance (task 016)."""
+"""Quote revisions, documents, PDFs and acceptance (task 016)."""
 
+from travelos.quotes.documents import build_group_document, build_quote_document
 from travelos.quotes.errors import (
+    QuoteDocumentError,
     QuoteError,
     QuoteGroupNotFoundError,
     QuoteGroupValidationError,
     QuoteNotFoundError,
+    QuotePdfUnavailableError,
     QuotePresentationConfigError,
     QuotePresentationError,
     QuotePricingError,
@@ -26,6 +29,7 @@ from travelos.quotes.models import (
     acceptance_status,
     diff_revisions,
 )
+from travelos.quotes.pdf import render_pdf
 from travelos.quotes.presentation import (
     Brand,
     PaymentStage,
@@ -51,6 +55,7 @@ from travelos.quotes.render import (
     QuoteDocument,
     render_quote_html,
 )
+from travelos.quotes.rendering import QuoteRenderer, RenderedQuote
 from travelos.quotes.store import QuoteStore, QuoteView
 
 __all__ = [
@@ -68,6 +73,7 @@ __all__ = [
     "PresentationLoadResult",
     "PresentationStatus",
     "QuoteDocument",
+    "QuoteDocumentError",
     "QuoteError",
     "QuoteGroupDraft",
     "QuoteGroupNotFoundError",
@@ -80,11 +86,13 @@ __all__ = [
     "QuoteLine",
     "QuoteLineRecord",
     "QuoteNotFoundError",
+    "QuotePdfUnavailableError",
     "QuotePresentation",
     "QuotePresentationConfigError",
     "QuotePresentationError",
     "QuotePricingError",
     "QuoteRecord",
+    "QuoteRenderer",
     "QuoteRevision",
     "QuoteRevisionRecord",
     "QuoteState",
@@ -92,10 +100,14 @@ __all__ = [
     "QuoteStore",
     "QuoteValidationError",
     "QuoteView",
+    "RenderedQuote",
     "RevisionDiff",
     "Terms",
     "acceptance_status",
+    "build_group_document",
+    "build_quote_document",
     "diff_revisions",
     "load_quote_presentation",
+    "render_pdf",
     "render_quote_html",
 ]
