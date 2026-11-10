@@ -168,8 +168,10 @@ reviewable:
   `numeric` column is introduced; a missing rate is never 1:1.
 - `price_calculations` - the input `PriceRequest` and the output `PriceResult` as JSONB,
   the cited `rule_set_id`/`tax_table_id` and their versions, the status, and every
-  integer-paise level. `quote_revision_id` stays a plain nullable UUID until task 016
-  creates `quote_revisions`.
+  integer-paise level. `quote_revision_id` stays a nullable plain UUID, not a foreign
+  key (task 016a). The authoritative link is `quote_revisions.price_calculation_id`;
+  this reverse pointer is only a hint and may be null or name a revision the quote
+  transaction is about to insert.
 
 UPDATE, DELETE and TRUNCATE are refused by ORM listeners (`AppendOnlyError`) and by the
 shared `travelos_block_append_only` trigger, so a quote can always be traced back to the
@@ -191,8 +193,44 @@ write goes through `AuditWriter`; no rules, tax rows or customer data are copied
 the audit entry. There is no clock or network in the store: callers pass `now` and
 `fetched_at`, which keeps a stored calculation reproducible.
 
-`quote_revisions` does not exist yet (task 016), so a calculation either cites none
-(for a pricing preview) or a caller-supplied UUID that the quote slice must reconcile.
+`quote_revisions` exists as of task 016a. `PricingStore.record_calculation` may still
+store a preview calculation with no revision, or a calculation whose `quote_revision_id`
+names the revision the quote store is about to insert; the column is a plain nullable
+UUID, so no database ordering constraint is involved. `QuoteStore` is the only writer
+that turns a stored calculation into a customer-facing revision, and it reuses that
+pre-allocated id when present.
+
+## Quote revisions (task 016a)
+`quotes/store.py` copies one stored `ok` calculation into an immutable `quote_revisions`
+row plus one `quote_lines` row per calculator line. The lines are the calculator's own
+aggregate breakdown; no customer price is allocated back to individual supplier items,
+because the calculator does not produce that allocation and inventing one would be a new
+money rule. Item detail (fare rules, snapshot references) is read from the cited
+itinerary instead.
+
+Creation is refused unless:
+
+- the calculation exists in this tenant, has status `ok` and is in INR with a customer
+  price;
+- its stored `outputs["expires_at"]` is a timezone-aware instant - the quote expiry is
+  that instant, never a freshly invented validity;
+- the itinerary exists in this tenant, is INR, and does not belong to a different inquiry;
+- the calculation has not already backed a revision, and its reverse `quote_revision_id`
+  is unused.
+
+`add_revision` is allowed only while the quote is `DRAFT`. It appends the next numbered
+revision, records a `RevisionDiff` (per-line added/removed/changed deltas in exact paise,
+plus an itinerary-changed flag) as `diff_from_previous`, and moves `expires_at` to the new
+calculation's expiry. Re-quoting a sent or viewed quote is task 016d; quietly replacing an
+approved revision would hide the change from the reviewer. Quote revisions and lines are
+append-only (ORM listeners plus the shared trigger), so the diff always describes rows that
+still exist. `QuoteStore` does not calculate a price, render a document, send anything,
+create an approval or call the router; those are later slices.
+
+The pure acceptance predicate in `quotes/models.py` (`acceptance_status`) defines when a
+quote may be accepted: only a `SENT` or `VIEWED` quote inside its window is `eligible`; an
+`ACCEPTED` quote stays `already_accepted`; an `EXPIRED` state or `now >= expires_at` is
+`expired`; everything else is `not_sent`. The accept endpoint and token are 016c.
 
 ## Trusted competitor ceiling and owner routing (task 015d)
 `pricing/ceiling.py` turns stored competitor observations into the calculator's
@@ -228,7 +266,10 @@ retried quote does not flood the queue. `ok` and `needs_config` are not routed:
 Routing is not called automatically by `record_calculation`; the quote slice
 (016) wires the two together, records which task/revision belongs to the
 calculation, and closes the loop when the owner decides. There is no dashboard
-queue for these tasks yet (017).
+queue for these tasks yet (017). Task 016a deliberately does not call the router:
+it only accepts `ok` calculations, so `below_floor`/`uncompetitive` results are
+refused before a quote exists, and owner-approved below-floor entry is planned
+for 016c.
 
 ## Test requirements
 Property tests (hypothesis): determinism; recommended >= floor unless status flagged; monotonic in supplier cost; line items sum exactly to totals; rounding never crosses the floor; tax never negative and always traceable to a table row; no float types in the module (static test); FX conversion round-trips within tolerance rules.

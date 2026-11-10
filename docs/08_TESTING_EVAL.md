@@ -571,6 +571,37 @@ observations to the calculator's reference:
 The fixtures use synthetic 3%/8%/15% margins, a 5% tax row and fake competitor prices;
 they prove the routing contract, not real policy or market data.
 
+## Quote revisions (task 016a)
+`tests/unit/test_quote_revisions.py` (24 tests) pins the pure revision model:
+
+- a revision accepts lines that sum exactly to its total and refuses one that does not,
+  duplicate positions, duplicate line identities, a negative total and a non-INR line;
+- the diff reports added, removed and changed lines with exact paise deltas, omits
+  unchanged lines, flags a changed itinerary, and always has line deltas summing to
+  `total_delta` (property test over 50 generated revision pairs);
+- `acceptance_status` is eligible only for a sent/viewed quote inside its window, keeps
+  an accepted quote accepted after expiry, treats `now == expires_at` as expired, and
+  refuses a naive datetime.
+
+`tests/integration/test_quote_store.py` (19 tests) pins the writer against PostgreSQL:
+
+- a stored `ok` calculation becomes a draft quote whose revision copies the calculator's
+  total and every line exactly, with the calculation's expiry and no token yet;
+- `quote.created` and `quote.revision.created` audit entries record counts and paise but
+  no customer data;
+- a pre-allocated revision id recorded on the calculation is reused by the quote;
+- `below_floor`, `uncompetitive` and `needs_config` calculations, an unknown calculation,
+  an unknown itinerary, a calculation with no expiry and a duplicate calculation are all
+  refused, with no quote row left behind;
+- a second draft revision records the diff and moves the expiry, while a non-`DRAFT` quote
+  refuses a revision and an unknown quote cannot gain one;
+- another tenant cannot read or reuse the quote;
+- revisions and lines are append-only at the ORM, and the database rejects an unknown
+  state and a malformed accept-token hash.
+
+The fixtures use a synthetic 800 bps target margin, a 500 bps tax row and mock supplier
+offers; they prove the quote contract, not real policy or customer data.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

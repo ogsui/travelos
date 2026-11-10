@@ -121,10 +121,11 @@ class FxRateRecord(BaseTable):
 class PriceCalculationRecord(BaseTable):
     """One immutable quote computation and the versions it used.
 
-    ``quote_revision_id`` is intentionally a plain UUID with no foreign key yet:
-    ``quote_revisions`` arrives with task 016. The calculation must still be
-    storable before a quote exists (for a pricing preview), so the column is
-    nullable until that table exists.
+    ``quote_revision_id`` is a nullable plain UUID with no ORM or database
+    foreign key. The authoritative link for a quote is
+    ``quote_revisions.price_calculation_id``; this reverse pointer is only a
+    hint, filled when the caller already knows the revision id (which may not be
+    inserted yet) and left null for a pricing preview.
     """
 
     __tablename__ = "price_calculations"
