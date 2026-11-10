@@ -602,6 +602,24 @@ they prove the routing contract, not real policy or market data.
 The fixtures use a synthetic 800 bps target margin, a 500 bps tax row and mock supplier
 offers; they prove the quote contract, not real policy or customer data.
 
+## Multi-option groups (task 016b1)
+`tests/unit/test_quote_groups.py` (6 tests) pins the pure rules: two distinct options are
+valid; a single option, duplicate labels (case/space-insensitive), duplicate quote ids and
+a blank label are refused; labels are trimmed.
+
+`tests/integration/test_quote_store.py` now has 30 tests; the 11 group tests pin:
+
+- a group loads its options in staff order with positions 0..n-1 and aligned quote rows;
+- a quote from another inquiry, a quote without an inquiry, an unknown quote/inquiry and a
+  second group for the same quote are refused;
+- a group is invisible to another tenant;
+- group and option rows are append-only, and the database refuses a blank title;
+- creation writes one `quote.group.created` audit entry with labels/counts and no
+  customer data.
+
+The fixtures use synthetic inquiries, quotes and labels; they prove the grouping contract,
+not an owner tier rule or real customer data.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

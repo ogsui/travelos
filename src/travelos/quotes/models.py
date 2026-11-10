@@ -89,6 +89,36 @@ class QuoteLine(_FrozenModel):
         return (self.kind, self.description)
 
 
+class QuoteGroupOption(_FrozenModel):
+    """One staff-labelled option inside a multi-option quote group.
+
+    The label is presentation text supplied by staff. There is deliberately no
+    tier, rank or price field: ranking value/standard/premium is an owner rule
+    that has not been supplied.
+    """
+
+    label: Annotated[str, Field(min_length=1, max_length=80)]
+    quote_id: UUID
+
+
+class QuoteGroupDraft(_FrozenModel):
+    """The ordered options of a new group, validated before anything is stored."""
+
+    options: tuple[QuoteGroupOption, ...]
+
+    @model_validator(mode="after")
+    def _ordered_but_unranked(self) -> Self:
+        if len(self.options) < 2:
+            raise ValueError("a quote group needs at least two options")
+        labels = [option.label.casefold() for option in self.options]
+        if len(labels) != len(set(labels)):
+            raise ValueError("quote group option labels must be unique")
+        quote_ids = [option.quote_id for option in self.options]
+        if len(quote_ids) != len(set(quote_ids)):
+            raise ValueError("quote group option quotes must be unique")
+        return self
+
+
 class QuoteRevision(_FrozenModel):
     """One immutable revision whose lines add up to its customer total."""
 
@@ -270,6 +300,8 @@ __all__ = [
     "LineChange",
     "LineDelta",
     "LineKind",
+    "QuoteGroupDraft",
+    "QuoteGroupOption",
     "QuoteLine",
     "QuoteRevision",
     "QuoteState",

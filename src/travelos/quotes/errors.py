@@ -26,5 +26,13 @@ class QuotePricingError(QuoteValidationError):
     """The price calculation is missing, not ``ok``, or has no usable expiry."""
 
 
+class QuoteGroupNotFoundError(QuoteError):
+    """The quote group is unknown in this tenant."""
+
+
+class QuoteGroupValidationError(QuoteValidationError):
+    """The group mixes inquiries, reuses a quote or is otherwise invalid."""
+
+
 class QuoteStateError(QuoteError):
     """The quote's workflow state does not allow the requested change."""

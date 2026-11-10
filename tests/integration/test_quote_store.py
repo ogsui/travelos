@@ -25,6 +25,7 @@ from travelos.core.db import DEFAULT_TENANT_ID
 from travelos.core.errors import AppendOnlyError
 from travelos.core.models import AuditLog, User
 from travelos.core.money import Money, money
+from travelos.inquiry.models import Inquiry
 from travelos.inquiry.requirement import Requirement
 from travelos.packages.builder import build_package
 from travelos.packages.models import Itinerary
@@ -53,13 +54,28 @@ from travelos.pricing.records import PriceCalculationRecord
 from travelos.pricing.store import PricingStore
 from travelos.pricing.tax import TaxRateRow, TaxTable
 from travelos.quotes.errors import (
+    QuoteGroupNotFoundError,
+    QuoteGroupValidationError,
     QuoteNotFoundError,
     QuotePricingError,
     QuoteStateError,
     QuoteValidationError,
 )
-from travelos.quotes.models import AcceptanceStatus, QuoteState, acceptance_status
-from travelos.quotes.records import QuoteLineRecord, QuoteRecord, QuoteRevisionRecord
+from travelos.quotes.groups import QuoteGroupStore
+from travelos.quotes.models import (
+    AcceptanceStatus,
+    QuoteGroupDraft,
+    QuoteGroupOption,
+    QuoteState,
+    acceptance_status,
+)
+from travelos.quotes.records import (
+    QuoteGroupOptionRecord,
+    QuoteGroupRecord,
+    QuoteLineRecord,
+    QuoteRecord,
+    QuoteRevisionRecord,
+)
 from travelos.quotes.store import QuoteStore
 from travelos.suppliers.models import CancellationRules, FareRules, Offer
 
@@ -252,8 +268,8 @@ def sample_itinerary() -> Itinerary:
     return build.itinerary
 
 
-def make_itinerary(db: Session) -> UUID:
-    return ItineraryStore(db).record(sample_itinerary()).id
+def make_itinerary(db: Session, inquiry_id: UUID | None = None) -> UUID:
+    return ItineraryStore(db).record(sample_itinerary(), inquiry_id=inquiry_id).id
 
 
 # ---------------------------------------------------------------------------
@@ -667,6 +683,206 @@ def test_the_database_refuses_a_malformed_accept_token_hash(db: Session) -> None
             state=QuoteState.DRAFT.value,
             expires_at=NOW,
             accept_token_hash="not-a-sha256",
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db.flush()
+    db.rollback()
+
+
+# ---------------------------------------------------------------------------
+# Multi-option groups (task 016b1)
+# ---------------------------------------------------------------------------
+
+
+def make_inquiry(db: Session) -> UUID:
+    inquiry = Inquiry(trip_type="package")
+    db.add(inquiry)
+    db.flush()
+    return inquiry.id
+
+
+def make_quote_for(
+    db: Session,
+    inquiry_id: UUID | None,
+    *,
+    net_paise: int = 100_000,
+    now: datetime = NOW,
+) -> QuoteRecord:
+    itinerary_id = make_itinerary(db, inquiry_id=inquiry_id)
+    calculation, _ = record_price(db, net_paise=net_paise, now=now)
+    return QuoteStore(db).create(
+        calculation_id=calculation.id,
+        itinerary_id=itinerary_id,
+        inquiry_id=inquiry_id,
+    )
+
+
+def make_group(
+    db: Session,
+    inquiry_id: UUID,
+    quote_ids: list[UUID],
+    *,
+    labels: list[str] | None = None,
+) -> QuoteGroupRecord:
+    names = labels or [f"Option {chr(ord('A') + index)}" for index in range(len(quote_ids))]
+    draft = QuoteGroupDraft(
+        options=tuple(
+            QuoteGroupOption(label=label, quote_id=quote_id)
+            for label, quote_id in zip(names, quote_ids, strict=True)
+        )
+    )
+    return QuoteGroupStore(db).create(
+        inquiry_id=inquiry_id,
+        title="Synthetic trip options",
+        draft=draft,
+    )
+
+
+def test_a_group_loads_its_options_in_the_order_given(db: Session) -> None:
+    inquiry_id = make_inquiry(db)
+    first = make_quote_for(db, inquiry_id)
+    second = make_quote_for(db, inquiry_id, net_paise=110_000)
+    group = make_group(db, inquiry_id, [first.id, second.id], labels=["Beach", "City"])
+
+    view = QuoteGroupStore(db).load(group.id)
+
+    assert view.group.inquiry_id == inquiry_id
+    assert view.labels == ("Beach", "City")
+    assert [option.position for option in view.options] == [0, 1]
+    assert [quote.id for quote in view.quotes] == [first.id, second.id]
+
+
+def test_a_group_refuses_a_quote_from_another_inquiry(db: Session) -> None:
+    first_inquiry = make_inquiry(db)
+    second_inquiry = make_inquiry(db)
+    first = make_quote_for(db, first_inquiry)
+    second = make_quote_for(db, second_inquiry)
+
+    with pytest.raises(QuoteGroupValidationError, match="belongs to inquiry"):
+        make_group(db, first_inquiry, [first.id, second.id])
+
+
+def test_a_group_refuses_a_quote_without_an_inquiry(db: Session) -> None:
+    inquiry_id = make_inquiry(db)
+    grouped = make_quote_for(db, inquiry_id)
+    ungrouped = make_quote_for(db, None)
+
+    with pytest.raises(QuoteGroupValidationError, match="has no inquiry"):
+        make_group(db, inquiry_id, [grouped.id, ungrouped.id])
+
+
+def test_a_quote_can_belong_to_only_one_group(db: Session) -> None:
+    inquiry_id = make_inquiry(db)
+    first = make_quote_for(db, inquiry_id)
+    second = make_quote_for(db, inquiry_id, net_paise=110_000)
+    third = make_quote_for(db, inquiry_id, net_paise=120_000)
+    make_group(db, inquiry_id, [first.id, second.id])
+
+    with pytest.raises(QuoteGroupValidationError, match="already belongs"):
+        make_group(db, inquiry_id, [first.id, third.id])
+
+
+def test_an_unknown_quote_is_refused(db: Session) -> None:
+    inquiry_id = make_inquiry(db)
+    first = make_quote_for(db, inquiry_id)
+
+    with pytest.raises(QuoteGroupValidationError, match="was not found"):
+        make_group(db, inquiry_id, [first.id, uuid4()])
+
+
+def test_an_unknown_inquiry_is_refused(db: Session) -> None:
+    draft = QuoteGroupDraft(
+        options=(
+            QuoteGroupOption(label="Option A", quote_id=uuid4()),
+            QuoteGroupOption(label="Option B", quote_id=uuid4()),
+        )
+    )
+
+    with pytest.raises(QuoteGroupValidationError, match="was not found"):
+        QuoteGroupStore(db).create(
+            inquiry_id=uuid4(),
+            title="Synthetic trip options",
+            draft=draft,
+        )
+
+
+def test_a_group_is_invisible_to_another_tenant(db: Session) -> None:
+    inquiry_id = make_inquiry(db)
+    first = make_quote_for(db, inquiry_id)
+    second = make_quote_for(db, inquiry_id, net_paise=110_000)
+    group = make_group(db, inquiry_id, [first.id, second.id])
+
+    other = QuoteGroupStore(db, tenant_id=uuid4())
+
+    with pytest.raises(QuoteGroupNotFoundError):
+        other.load(group.id)
+
+
+def test_group_option_rows_are_append_only(db: Session) -> None:
+    inquiry_id = make_inquiry(db)
+    first = make_quote_for(db, inquiry_id)
+    second = make_quote_for(db, inquiry_id, net_paise=110_000)
+    group = make_group(db, inquiry_id, [first.id, second.id])
+    option = (
+        db.execute(
+            select(QuoteGroupOptionRecord).where(QuoteGroupOptionRecord.group_id == group.id)
+        )
+        .scalars()
+        .first()
+    )
+    assert option is not None
+
+    option.label = "Changed"
+    with pytest.raises(AppendOnlyError):
+        db.flush()
+    db.rollback()
+
+
+def test_a_group_cannot_be_deleted(db: Session) -> None:
+    inquiry_id = make_inquiry(db)
+    first = make_quote_for(db, inquiry_id)
+    second = make_quote_for(db, inquiry_id, net_paise=110_000)
+    group = make_group(db, inquiry_id, [first.id, second.id])
+    row = db.get(QuoteGroupRecord, group.id)
+    assert row is not None
+
+    db.delete(row)
+    with pytest.raises(AppendOnlyError):
+        db.flush()
+    db.rollback()
+
+
+def test_creating_a_group_is_audited_without_customer_data(db: Session) -> None:
+    inquiry_id = make_inquiry(db)
+    first = make_quote_for(db, inquiry_id)
+    second = make_quote_for(db, inquiry_id, net_paise=110_000)
+    group = make_group(db, inquiry_id, [first.id, second.id], labels=["Beach", "City"])
+
+    db.flush()
+    entries = list(
+        db.execute(
+            select(AuditLog).where(
+                AuditLog.action == "quote.group.created",
+                AuditLog.subject_id == group.id,
+            )
+        ).scalars()
+    )
+    assert len(entries) == 1
+    after = entries[0].after
+    assert after is not None
+    assert after["option_count"] == 2
+    assert after["labels"] == ["Beach", "City"]
+    assert "customer" not in after
+
+
+def test_the_database_refuses_a_blank_group_title(db: Session) -> None:
+    inquiry_id = make_inquiry(db)
+    db.add(
+        QuoteGroupRecord(
+            tenant_id=DEFAULT_TENANT_ID,
+            inquiry_id=inquiry_id,
+            title="   ",
         )
     )
     with pytest.raises(IntegrityError):

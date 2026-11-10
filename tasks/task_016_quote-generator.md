@@ -18,7 +18,8 @@ The umbrella task exceeds the ~800-line review budget, so it is delivered in fou
 | Slice | Scope | State |
 |---|---|---|
 | **016a** | Quote/revision persistence: `quotes`, `quote_revisions`, `quote_lines` (migration 0018), exact copy of an `ok` calculation, revision numbering, expiry, diff, draft-only revisions, pure acceptance predicate | **done** |
-| **016b** | Branded HTML/PDF rendering (WeasyPrint), multi-option layout, fare rules/refundability, visa notes "to be confirmed", payment schedule, snapshot refs. Blocked until the owner supplies brand assets and T&Cs; it must fail closed (`NEEDS_CONFIG`) rather than invent legal text | pending |
+| **016b1** | Staff-labelled, append-only multi-option groups (`quote_groups`, `quote_group_options`, migration 0019), ordered labels, same-inquiry/one-group rules. No tier ranking is inferred | **done** |
+| **016b2** | Branded HTML/PDF rendering (WeasyPrint) over one quote or a group: total + tax lines only, fare rules/refundability, visa notes "to be confirmed", payment schedule, snapshot refs. Blocked until the owner supplies brand assets and T&Cs; it must fail closed (`NEEDS_CONFIG`) rather than invent legal text | pending |
 | **016c** | Approval-gated send (`quote.send` A1), consent/mode/kill-switch gates, `quote_events`, accept token (hash only), acceptance endpoint refusing expired/stale revisions, owner-approved below-floor entry | pending |
 | **016d** | Re-quote flow on plan changes with a reviewer diff, owner-approved follow-up templates, consent-aware cadence, stop on accept/reply/STOP, timer/outbox wiring | pending |
 

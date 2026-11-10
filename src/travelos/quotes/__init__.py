@@ -2,16 +2,21 @@
 
 from travelos.quotes.errors import (
     QuoteError,
+    QuoteGroupNotFoundError,
+    QuoteGroupValidationError,
     QuoteNotFoundError,
     QuotePricingError,
     QuoteStateError,
     QuoteValidationError,
 )
+from travelos.quotes.groups import QuoteGroupStore, QuoteGroupView
 from travelos.quotes.models import (
     AcceptanceStatus,
     LineChange,
     LineDelta,
     LineKind,
+    QuoteGroupDraft,
+    QuoteGroupOption,
     QuoteLine,
     QuoteRevision,
     QuoteState,
@@ -19,7 +24,13 @@ from travelos.quotes.models import (
     acceptance_status,
     diff_revisions,
 )
-from travelos.quotes.records import QuoteLineRecord, QuoteRecord, QuoteRevisionRecord
+from travelos.quotes.records import (
+    QuoteGroupOptionRecord,
+    QuoteGroupRecord,
+    QuoteLineRecord,
+    QuoteRecord,
+    QuoteRevisionRecord,
+)
 from travelos.quotes.store import QuoteStore, QuoteView
 
 __all__ = [
@@ -28,6 +39,14 @@ __all__ = [
     "LineDelta",
     "LineKind",
     "QuoteError",
+    "QuoteGroupDraft",
+    "QuoteGroupNotFoundError",
+    "QuoteGroupOption",
+    "QuoteGroupOptionRecord",
+    "QuoteGroupRecord",
+    "QuoteGroupStore",
+    "QuoteGroupValidationError",
+    "QuoteGroupView",
     "QuoteLine",
     "QuoteLineRecord",
     "QuoteNotFoundError",

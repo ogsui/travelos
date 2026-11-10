@@ -50,6 +50,8 @@ BUSINESS_TABLES = {
     "price_calculations",
     "price_snapshots",
     "pricing_rule_sets",
+    "quote_group_options",
+    "quote_groups",
     "quote_lines",
     "quote_revisions",
     "quotes",

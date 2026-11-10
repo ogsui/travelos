@@ -153,6 +153,53 @@ class QuoteLineRecord(BaseTable):
     )
 
 
+class QuoteGroupRecord(BaseTable):
+    """One staff-titled set of quote options under one inquiry."""
+
+    __tablename__ = "quote_groups"
+
+    inquiry_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("inquiries.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint("length(btrim(title)) > 0", name="title_not_blank"),
+        Index("ix_quote_groups_tenant_inquiry", "tenant_id", "inquiry_id"),
+    )
+
+
+class QuoteGroupOptionRecord(BaseTable):
+    """One ordered, labelled quote inside a group."""
+
+    __tablename__ = "quote_group_options"
+
+    group_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("quote_groups.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    quote_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("quotes.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    label: Mapped[str] = mapped_column(String(80), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("position >= 0", name="position_non_negative"),
+        CheckConstraint("length(btrim(label)) > 0", name="label_not_blank"),
+        UniqueConstraint("group_id", "position", name="uq_quote_group_options_group_id_position"),
+        UniqueConstraint("group_id", "label", name="uq_quote_group_options_group_id_label"),
+        UniqueConstraint("quote_id", name="uq_quote_group_options_quote_id"),
+        Index("ix_quote_group_options_tenant_group", "tenant_id", "group_id"),
+    )
+
+
 def _block_update(mapper: object, connection: object, target: object) -> None:
     del mapper, connection, target
     raise AppendOnlyError("quote revisions are append-only: UPDATE is forbidden")
@@ -163,8 +210,28 @@ def _block_delete(mapper: object, connection: object, target: object) -> None:
     raise AppendOnlyError("quote revisions are append-only: DELETE is forbidden")
 
 
+def _block_group_update(mapper: object, connection: object, target: object) -> None:
+    del mapper, connection, target
+    raise AppendOnlyError("quote groups are append-only: UPDATE is forbidden")
+
+
+def _block_group_delete(mapper: object, connection: object, target: object) -> None:
+    del mapper, connection, target
+    raise AppendOnlyError("quote groups are append-only: DELETE is forbidden")
+
+
 for _record in (QuoteRevisionRecord, QuoteLineRecord):
     event.listen(_record, "before_update", _block_update)
     event.listen(_record, "before_delete", _block_delete)
 
-__all__ = ["QuoteLineRecord", "QuoteRecord", "QuoteRevisionRecord"]
+for _group_record in (QuoteGroupRecord, QuoteGroupOptionRecord):
+    event.listen(_group_record, "before_update", _block_group_update)
+    event.listen(_group_record, "before_delete", _block_group_delete)
+
+__all__ = [
+    "QuoteGroupOptionRecord",
+    "QuoteGroupRecord",
+    "QuoteLineRecord",
+    "QuoteRecord",
+    "QuoteRevisionRecord",
+]
