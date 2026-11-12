@@ -251,6 +251,22 @@ class PricingStore:
         )
         return None if row is None else _stored_tax_table(row)
 
+    def get_rule_set(self, rule_set_id: UUID) -> StoredRuleSet | None:
+        """One verified rule-set row by id, or ``None`` when this tenant lacks it."""
+
+        row = self._db.get(PricingRuleSetRecord, rule_set_id)
+        if row is None or row.tenant_id != self._tenant_id:
+            return None
+        return _stored_rule_set(row)
+
+    def get_tax_table(self, tax_table_id: UUID) -> StoredTaxTable | None:
+        """One verified tax-table row by id, or ``None`` when this tenant lacks it."""
+
+        row = self._db.get(TaxRuleTableRecord, tax_table_id)
+        if row is None or row.tenant_id != self._tenant_id:
+            return None
+        return _stored_tax_table(row)
+
     # ------------------------------------------------------------------
     # FX observations
     # ------------------------------------------------------------------

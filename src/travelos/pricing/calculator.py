@@ -30,6 +30,7 @@ from travelos.pricing.arithmetic import (
     round_money,
     round_not_below,
 )
+from travelos.pricing.errors import PricingValidationError
 from travelos.pricing.models import (
     CustomerSegment,
     GatewayFeePolicy,
@@ -141,21 +142,38 @@ class _Level:
     tax_lines: tuple[tuple[str, TaxLine], ...]
 
 
-def price_quote(request: PriceRequest) -> PriceResult:
+@dataclass(frozen=True, slots=True)
+class _Assembly:
+    """The costed price before any customer price is chosen."""
+
+    costed: tuple[_CostedItem, ...]
+    target_level: _Level
+    floor: int
+    target: int
+    ceiling: int
+    absorbed: bool
+    gateway: int
+    warnings: tuple[str, ...]
+    explanation: tuple[str, ...]
+
+
+def _assembly(request: PriceRequest) -> tuple[_Assembly | None, PriceResult | None]:
+    """Build the three price levels, or the fail-closed result if that is impossible."""
+
     rules = request.rules
     if rules.tcs.enabled:
-        return _needs_config(
+        return None, _needs_config(
             request,
             ("tax.tcs: TCS is enabled but no accountant-approved TCS table exists",),
         )
 
     costed, gaps, fx_notes = _cost_items(request)
     if gaps:
-        return _needs_config(request, gaps, warnings=fx_notes)
+        return None, _needs_config(request, gaps, warnings=fx_notes)
 
     levels, tax_gaps = _price_levels(request, costed)
     if levels is None:
-        return _needs_config(request, tax_gaps, warnings=fx_notes)
+        return None, _needs_config(request, tax_gaps, warnings=fx_notes)
     floor_level, target_level, cap_level = levels
     absorbed = rules.gateway_fee_policy is GatewayFeePolicy.ABSORB
     gateway = request.gateway_fee.paise
@@ -178,7 +196,35 @@ def price_quote(request: PriceRequest) -> PriceResult:
             f"{rules.competitor.undercut_paise} paise undercut"
         )
 
-    rounding = rules.rounding
+    return (
+        _Assembly(
+            costed=costed,
+            target_level=target_level,
+            floor=floor,
+            target=target,
+            ceiling=ceiling,
+            absorbed=absorbed,
+            gateway=gateway,
+            warnings=tuple(dict.fromkeys(warnings)),
+            explanation=tuple(explanation),
+        ),
+        None,
+    )
+
+
+def price_quote(request: PriceRequest) -> PriceResult:
+    assembly, failure = _assembly(request)
+    if failure is not None:
+        return failure
+    assert assembly is not None
+    floor = assembly.floor
+    target = assembly.target
+    ceiling = assembly.ceiling
+    gateway = assembly.gateway
+    absorbed = assembly.absorbed
+    warnings = list(assembly.warnings)
+
+    rounding = request.rules.rounding
     if request.proposed_price is not None:
         proposed_paise = round_money(request.proposed_price, rounding).paise
         recommended = proposed_paise
@@ -216,8 +262,8 @@ def price_quote(request: PriceRequest) -> PriceResult:
         customer = recommended + (gateway if not absorbed else 0)
         lines = _lines(
             request,
-            costed,
-            target_level,
+            assembly.costed,
+            assembly.target_level,
             absorbed,
             gateway,
             customer,
@@ -232,9 +278,71 @@ def price_quote(request: PriceRequest) -> PriceResult:
         recommended=Money(recommended) if recommended is not None else None,
         customer_price=Money(customer) if customer is not None else None,
         lines=lines,
-        explanation=tuple(explanation),
+        explanation=assembly.explanation,
         warnings=tuple(dict.fromkeys(warnings)),
-        rule_version=rules.version,
+        rule_version=request.rules.version,
+        tax_table_version=request.tax_table.version,
+        expires_at=_expires_at(request),
+    )
+
+
+def assemble_owner_price(request: PriceRequest, total: Money) -> PriceResult:
+    """Assemble a price the owner chose (task 016c2c).
+
+    The owner total is the final customer total, including a passed-through gateway
+    fee. Every cost, margin and tax line still comes from the target assembly, and
+    one explicit ``proposal`` line carries the difference, so the lines add up to
+    the owner's number exactly. The tax amounts therefore describe the assembled
+    price, not a recomputation on the owner's total: the accountant's tax rule for
+    an owner-adjusted consideration is not supplied, and this function does not
+    invent one. The amount must already sit on the owner's rounding step.
+    """
+
+    if total.currency != _INR:
+        raise PricingValidationError("owner total must be in INR")
+    if total.paise < 0:
+        raise PricingValidationError("owner total must not be negative")
+
+    assembly, failure = _assembly(request)
+    if failure is not None:
+        return failure
+    assert assembly is not None
+
+    step = request.rules.rounding.step_paise
+    if total.paise % step != 0:
+        raise PricingValidationError(f"owner total must be a multiple of {step} paise")
+
+    passed_through = 0 if assembly.absorbed else assembly.gateway
+    base = total.paise - passed_through
+    if base < 0:
+        raise PricingValidationError("owner total is below the passed-through gateway fee")
+
+    if base < assembly.floor:
+        status = PriceStatus.BELOW_FLOOR
+    elif base > assembly.ceiling:
+        status = PriceStatus.UNCOMPETITIVE
+    else:
+        status = PriceStatus.OK
+
+    lines = _owner_lines(request, assembly, total.paise)
+    if sum(line.amount.paise for line in lines) != total.paise:
+        raise AssertionError("owner price lines do not add up to the owner total")
+
+    warning = (
+        f"owner total {total.paise} paise; the tax lines describe the assembled "
+        f"price of {assembly.target} paise, not a recomputation on the owner total"
+    )
+    return PriceResult(
+        status=status,
+        floor=Money(assembly.floor),
+        target=Money(assembly.target),
+        ceiling=Money(assembly.ceiling),
+        recommended=Money(base),
+        customer_price=total,
+        lines=lines,
+        explanation=(*assembly.explanation, f"owner total: {total.paise} paise"),
+        warnings=tuple(dict.fromkeys((*assembly.warnings, warning))),
+        rule_version=request.rules.version,
         tax_table_version=request.tax_table.version,
         expires_at=_expires_at(request),
     )
@@ -378,17 +486,15 @@ def _round_with_ceiling(
     return None
 
 
-def _lines(
+def _assembled_lines(
     request: PriceRequest,
     costed: tuple[_CostedItem, ...],
     target_level: _Level,
     absorbed: bool,
     gateway: int,
-    customer: int,
-    status: PriceStatus,
-) -> tuple[PriceLine, ...]:
-    if status is PriceStatus.UNCOMPETITIVE:
-        return ()
+) -> list[PriceLine]:
+    """Every supplier, margin, tax and gateway line of the target assembly."""
+
     lines: list[PriceLine] = []
     for costed_item in costed:
         item = costed_item.item
@@ -436,6 +542,21 @@ def _lines(
                 amount=Money(gateway),
             )
         )
+    return lines
+
+
+def _lines(
+    request: PriceRequest,
+    costed: tuple[_CostedItem, ...],
+    target_level: _Level,
+    absorbed: bool,
+    gateway: int,
+    customer: int,
+    status: PriceStatus,
+) -> tuple[PriceLine, ...]:
+    if status is PriceStatus.UNCOMPETITIVE:
+        return ()
+    lines = _assembled_lines(request, costed, target_level, absorbed, gateway)
     composed = sum(line.amount.paise for line in lines)
     if status is PriceStatus.BELOW_FLOOR:
         lines.append(
@@ -453,6 +574,31 @@ def _lines(
                 amount=Money(customer - composed),
             )
         )
+    return tuple(lines)
+
+
+def _owner_lines(
+    request: PriceRequest,
+    assembly: _Assembly,
+    customer: int,
+) -> tuple[PriceLine, ...]:
+    """The assembly's lines plus one explicit difference up to the owner's total."""
+
+    lines = _assembled_lines(
+        request,
+        assembly.costed,
+        assembly.target_level,
+        assembly.absorbed,
+        assembly.gateway,
+    )
+    composed = sum(line.amount.paise for line in lines)
+    lines.append(
+        PriceLine(
+            kind="proposal",
+            label="owner total (difference from the assembled price)",
+            amount=Money(customer - composed),
+        )
+    )
     return tuple(lines)
 
 

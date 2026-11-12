@@ -24,7 +24,8 @@ The umbrella task exceeds the ~800-line review budget, so it is delivered in the
 | **016c1** | `quote_events` (migration 0020) with a per-quote position, hashed accept links (rotating, not single-use), view tracking, and acceptance refusing expired/stale/already-accepted/not-sent quotes | **done** |
 | **016c2a** | Two-step send: `quote.send` approval request, then delivery that re-checks expiry, presentation config, consent, channel kill switch and mode. Only `live` calls a transport; `test`/`shadow` record a suppressed send | **done** |
 | **016c2b** | Public token-only link endpoints: status, customer document and acceptance, one per-source abuse limit. No page or delivery wording | **done** |
-| **016c2c** | Owner-approved below-floor entry (`quote.below_floor`, A0) and the owner decision record it needs | pending |
+| **016c2c1** | Append-only owner price override (`quote_price_overrides`, `quote_revisions.pricing_override_id`, migration 0021): deterministic owner total via `assemble_owner_price`, owner-role and open-task checks, quote-store acceptance of the authorised calculation. No HTTP surface | **done** |
+| **016c2c2** | Owner-only HTTP endpoint and dashboard form that records the override, plus docs for the operator workflow | pending |
 | **016d** | Re-quote flow on plan changes with a reviewer diff, owner-approved follow-up templates and quote-link page/email wording, consent-aware cadence, stop on accept/reply/STOP, timer/outbox wiring | pending |
 
 ## Scope

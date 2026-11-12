@@ -735,6 +735,37 @@ fail-closed behaviour, not owner wording or link delivery. The API access plan
 (`tests/integration/test_route_access.py`) also asserts that all three routes are anonymous and
 token-gated.
 
+### Owner price overrides (task 016c2c1)
+`tests/unit/test_pricing_calculator.py` extends the calculator suite with the owner assembly:
+a total inside the bounds is `ok`, below the floor stays `below_floor`, above the ceiling is
+`uncompetitive` yet still carries exact lines, a passed-through gateway fee is part of the
+owner's total, an off-step / negative / non-INR / below-gateway total is refused, a
+`needs_config` replay stays `needs_config`, and a property test proves every total reconciles
+line-for-line with one `proposal` difference line. The warning states that the tax lines
+describe the assembled price, not a recomputation on the owner total.
+
+`tests/integration/test_quote_price_override.py` (18 tests) proves the money trail:
+
+- only a signed-in, active owner records an override; an agent and the system actor are refused,
+  as is a calculation that is not `below_floor`/`uncompetitive`, an unknown calculation, a short
+  or overlong reason, an off-step or negative total, and a calculation with no open
+  `pricing.owner_decision` task;
+- a decision can be recorded once: the task moves to `done` and a second attempt is refused;
+- the owner's total becomes a new deterministic calculation whose lines add up exactly, whose
+  expiry equals the source calculation's expiry (an override never extends validity), and whose
+  snapshot contains no reviewer email;
+- `quote.price_override.recorded` and `pricing.owner_decision.completed` are written, the audit
+  keeps the reason length but not the reason text, and raw or ORM updates to the override row
+  are blocked;
+- a below-floor calculation still cannot become a quote without an override, an override only
+  authorises the calculation it cites, and it backs at most one revision;
+- a quote revision created through the override stores `pricing_override_id` and the
+  `quote.created` audit names it.
+
+The fixtures are synthetic prices, margins and tax rates; the tests prove the mechanism and its
+refusals, not owner policy. Tax treatment of an owner-adjusted total remains an owner/accountant
+question and is recorded in `docs/BACKLOG.md`.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

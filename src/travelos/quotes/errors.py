@@ -1,8 +1,9 @@
 """Expected quote failures.
 
-A quote is only created from an ``ok`` price calculation, and every refusal names
-the concrete reason so a member of staff knows whether to fix the price, wait for
-an owner decision, or supply missing configuration.
+A quote is only created from an ``ok`` price calculation unless the owner has
+recorded a price override, and every refusal names the concrete reason so a member
+of staff knows whether to fix the price, wait for an owner decision, or supply
+missing configuration.
 """
 
 from __future__ import annotations
@@ -76,3 +77,11 @@ class QuoteDocumentError(QuoteError):
 
 class QuotePdfUnavailableError(QuoteDocumentError):
     """PDF output was requested but the optional WeasyPrint adapter is absent."""
+
+
+class QuotePriceOverrideNotFoundError(QuoteError):
+    """The owner price override is unknown in this tenant."""
+
+
+class QuotePriceOverrideError(QuoteError):
+    """The owner price override is not allowed as supplied."""

@@ -22,8 +22,10 @@ from travelos.pricing.calculator import (
     ItemCost,
     PriceRequest,
     PriceStatus,
+    assemble_owner_price,
     price_quote,
 )
+from travelos.pricing.errors import PricingValidationError
 from travelos.pricing.models import (
     CompetitorPolicy,
     CustomerSegment,
@@ -477,3 +479,106 @@ def test_price_ordering_properties(net_paise: int, competitor: int | None) -> No
     assert result.customer_price.paise <= result.ceiling.paise
     assert result.customer_price.paise % 100 == 0
     assert sum(line.amount.paise for line in result.lines) == result.customer_price.paise
+
+
+# ---------------------------------------------------------------------------
+# Owner-chosen totals (task 016c2c)
+# ---------------------------------------------------------------------------
+
+
+def test_an_owner_total_within_the_bounds_is_ok() -> None:
+    result = assemble_owner_price(request(), money(110_000))
+
+    assert result.status is PriceStatus.OK
+    assert result.customer_price == money(110_000)
+    assert result.recommended == money(110_000)
+    assert result.floor == money(105_250)
+    assert result.ceiling == money(115_750)
+    assert result.lines[-1].kind == "proposal"
+    assert result.lines[-1].amount == money(110_000 - 108_400)
+    assert sum(line.amount.paise for line in result.lines) == 110_000
+
+
+def test_an_owner_total_below_the_floor_stays_below_floor() -> None:
+    result = assemble_owner_price(request(), money(100_000))
+
+    assert result.status is PriceStatus.BELOW_FLOOR
+    assert result.customer_price == money(100_000)
+    assert sum(line.amount.paise for line in result.lines) == 100_000
+
+
+def test_an_owner_total_above_the_ceiling_is_uncompetitive_but_still_documentable() -> None:
+    # ceiling is 116000 - 10000 = 106000.
+    result = assemble_owner_price(request(competitor_reference=money(116_000)), money(110_000))
+
+    assert result.status is PriceStatus.UNCOMPETITIVE
+    assert result.customer_price == money(110_000)
+    assert result.ceiling == money(106_000)
+    assert sum(line.amount.paise for line in result.lines) == 110_000
+
+
+def test_an_owner_total_includes_a_passed_through_gateway_fee() -> None:
+    result = assemble_owner_price(request(gateway_fee=money(2_000)), money(110_000))
+
+    assert result.status is PriceStatus.OK
+    assert result.recommended == money(108_000)
+    assert result.customer_price == money(110_000)
+    assert result.lines[-1].amount == money(110_000 - 110_400)
+    assert sum(line.amount.paise for line in result.lines) == 110_000
+
+
+def test_an_owner_total_must_sit_on_the_rounding_step() -> None:
+    with pytest.raises(PricingValidationError, match="multiple of 100 paise"):
+        assemble_owner_price(request(), money(110_050))
+
+
+def test_an_owner_total_must_be_inr_and_not_negative() -> None:
+    with pytest.raises(PricingValidationError, match="INR"):
+        assemble_owner_price(request(), money(110_000, "USD"))
+
+    with pytest.raises(PricingValidationError, match="negative"):
+        assemble_owner_price(request(), money(-100))
+
+
+def test_an_owner_total_below_the_passed_through_gateway_fee_is_refused() -> None:
+    with pytest.raises(PricingValidationError, match="gateway"):
+        assemble_owner_price(request(gateway_fee=money(2_000)), money(1_000))
+
+
+def test_owner_assembly_propagates_needs_config() -> None:
+    result = assemble_owner_price(request(table=tax_table(approved=False)), money(110_000))
+
+    assert result.status is PriceStatus.NEEDS_CONFIG
+    assert result.customer_price is None
+    assert result.lines == ()
+
+
+def test_the_owner_total_warns_that_tax_lines_are_not_recomputed() -> None:
+    result = assemble_owner_price(request(), money(110_000))
+
+    assert any("not a recomputation on the owner total" in warning for warning in result.warnings)
+    assert result.explanation[-1] == "owner total: 110000 paise"
+
+
+@given(st.integers(min_value=2_000, max_value=100_000_000))
+@settings(max_examples=50)
+def test_an_owner_total_always_reconciles_exactly(total_paise: int) -> None:
+    total = total_paise - total_paise % 100
+    result = assemble_owner_price(request(gateway_fee=money(2_000)), money(total))
+
+    assert result.status in {
+        PriceStatus.OK,
+        PriceStatus.BELOW_FLOOR,
+        PriceStatus.UNCOMPETITIVE,
+    }
+    assert result.customer_price == money(total)
+    assert result.lines[-1].kind == "proposal"
+    assert sum(line.amount.paise for line in result.lines) == total
+
+
+def test_an_owner_total_of_zero_without_a_gateway_is_below_floor() -> None:
+    result = assemble_owner_price(request(), money(0))
+
+    assert result.status is PriceStatus.BELOW_FLOOR
+    assert result.customer_price == money(0)
+    assert sum(line.amount.paise for line in result.lines) == 0

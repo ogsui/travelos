@@ -2,9 +2,14 @@
 
 The store is deliberately narrow. It does not calculate a price, choose an
 itinerary, render a document, send anything or decide an approval. It copies one
-``ok`` price calculation and one persisted itinerary into an immutable revision,
-checks that the lines add up to the calculation's customer total exactly, and
-stores the revision diff.
+price calculation and one persisted itinerary into an immutable revision, checks
+that the lines add up to the calculation's customer total exactly, and stores the
+revision diff.
+
+A calculation whose status is not ``ok`` is refused unless the caller cites an
+owner price override (task 016c2c) that authorised exactly that calculation and
+total. The override is stored on the revision, so every customer-facing price can
+be traced either to an ``ok`` calculation or to a recorded owner decision.
 
 Only ``DRAFT`` quotes accept another revision in this slice. Re-quoting a sent
 quote needs the customer-change workflow and is task 016d; silently replacing an
@@ -46,6 +51,7 @@ from travelos.quotes.models import (
     RevisionDiff,
     diff_revisions,
 )
+from travelos.quotes.overrides import QuotePriceOverrideService
 from travelos.quotes.records import QuoteLineRecord, QuoteRecord, QuoteRevisionRecord
 
 
@@ -85,6 +91,7 @@ class QuoteStore:
         calculation_id: UUID,
         itinerary_id: UUID,
         inquiry_id: UUID | None = None,
+        override_id: UUID | None = None,
         actor: Actor | None = None,
     ) -> QuoteRecord:
         """Create a draft quote with revision 1; the caller owns the transaction."""
@@ -92,12 +99,12 @@ class QuoteStore:
         if inquiry_id is not None:
             self._require_inquiry(inquiry_id)
 
-        calculation = self._require_calculation(calculation_id)
+        calculation = self._require_calculation(calculation_id, override_id=override_id)
         itinerary = self._require_itinerary(itinerary_id)
         self._check_inquiry(itinerary, inquiry_id)
 
         expires_at = self._expiry(calculation)
-        revision = self._revision(calculation, itinerary_id, number=1)
+        revision = self._revision(calculation, itinerary_id, number=1, override_id=override_id)
         quote = QuoteRecord(
             tenant_id=self._tenant_id,
             inquiry_id=inquiry_id,
@@ -108,7 +115,7 @@ class QuoteStore:
         self._db.add(quote)
         self._db.flush()
 
-        self._insert_revision(quote, revision, calculation)
+        self._insert_revision(quote, revision, calculation, override_id=override_id)
         self._audit.record(
             self._db,
             action="quote.created",
@@ -121,6 +128,7 @@ class QuoteStore:
                 "revision_number": revision.number,
                 "itinerary_id": str(revision.itinerary_id),
                 "price_calculation_id": str(revision.price_calculation_id),
+                "pricing_override_id": (str(override_id) if override_id is not None else None),
                 "total_paise": revision.total.paise,
                 "currency": revision.total.currency,
                 "line_count": len(revision.lines),
@@ -135,6 +143,7 @@ class QuoteStore:
         *,
         calculation_id: UUID,
         itinerary_id: UUID,
+        override_id: UUID | None = None,
         actor: Actor | None = None,
     ) -> QuoteRecord:
         """Append a revision to a draft quote and record its exact diff."""
@@ -145,17 +154,17 @@ class QuoteStore:
                 f"quote {quote_id} is {quote.state}; a new revision requires DRAFT"
             )
 
-        calculation = self._require_calculation(calculation_id)
+        calculation = self._require_calculation(calculation_id, override_id=override_id)
         itinerary = self._require_itinerary(itinerary_id)
         self._check_inquiry(itinerary, quote.inquiry_id)
 
         previous = self._pure_revision(self._revision_row(quote.id, quote.current_revision))
         number = quote.current_revision + 1
-        revision = self._revision(calculation, itinerary_id, number=number)
+        revision = self._revision(calculation, itinerary_id, number=number, override_id=override_id)
         diff = diff_revisions(previous, revision)
         expires_at = self._expiry(calculation)
 
-        self._insert_revision(quote, revision, calculation, diff=diff)
+        self._insert_revision(quote, revision, calculation, diff=diff, override_id=override_id)
         quote.current_revision = number
         quote.expires_at = expires_at
         self._db.flush()
@@ -171,6 +180,7 @@ class QuoteStore:
                 "previous_number": previous.number,
                 "itinerary_id": str(revision.itinerary_id),
                 "price_calculation_id": str(revision.price_calculation_id),
+                "pricing_override_id": (str(override_id) if override_id is not None else None),
                 "total_paise": revision.total.paise,
                 "total_delta_paise": diff.total_delta.paise,
                 "itinerary_changed": diff.itinerary_changed,
@@ -249,16 +259,18 @@ class QuoteStore:
                 f"not {inquiry_id}"
             )
 
-    def _require_calculation(self, calculation_id: UUID) -> PriceCalculationRecord:
+    def _require_calculation(
+        self, calculation_id: UUID, *, override_id: UUID | None
+    ) -> PriceCalculationRecord:
         calculation = PricingStore(self._db, tenant_id=self._tenant_id).get_calculation(
             calculation_id
         )
         if calculation is None:
             raise QuotePricingError(f"price calculation {calculation_id} was not found")
-        if calculation.status != "ok":
+        if calculation.status != "ok" and override_id is None:
             raise QuotePricingError(
                 f"price calculation {calculation_id} is {calculation.status}; "
-                "only an ok calculation can become a quote"
+                "an owner price override is required before it can become a quote"
             )
         if calculation.currency != "INR":
             raise QuotePricingError(
@@ -267,7 +279,46 @@ class QuoteStore:
             )
         if calculation.customer_price_paise is None:
             raise QuotePricingError(f"price calculation {calculation_id} has no customer price")
+        if override_id is not None:
+            self._check_override(override_id, calculation)
         return calculation
+
+    def _check_override(self, override_id: UUID, calculation: PriceCalculationRecord) -> None:
+        override = QuotePriceOverrideService(self._db, tenant_id=self._tenant_id).get(override_id)
+        if override.authorised_calculation_id != calculation.id:
+            raise QuoteValidationError(
+                f"owner price override {override_id} authorised calculation "
+                f"{override.authorised_calculation_id}, not {calculation.id}"
+            )
+        if override.owner_total_paise != calculation.customer_price_paise:
+            raise QuotePricingError(
+                f"owner price override {override_id} records {override.owner_total_paise} "
+                f"paise, but calculation {calculation.id} prices "
+                f"{calculation.customer_price_paise} paise"
+            )
+        if override.currency != calculation.currency:
+            raise QuotePricingError(
+                f"owner price override {override_id} is in {override.currency}, but "
+                f"calculation {calculation.id} is in {calculation.currency}"
+            )
+        self._refuse_reused_override(override_id)
+
+    def _refuse_reused_override(self, override_id: UUID) -> None:
+        existing = (
+            self._db.execute(
+                select(QuoteRevisionRecord).where(
+                    QuoteRevisionRecord.tenant_id == self._tenant_id,
+                    QuoteRevisionRecord.pricing_override_id == override_id,
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if existing is not None:
+            raise QuoteValidationError(
+                f"owner price override {override_id} already backs revision "
+                f"{existing.number} of quote {existing.quote_id}"
+            )
 
     def _expiry(self, calculation: PriceCalculationRecord) -> datetime:
         raw = calculation.outputs.get("expires_at")
@@ -292,6 +343,7 @@ class QuoteStore:
         itinerary_id: UUID,
         *,
         number: int,
+        override_id: UUID | None = None,
     ) -> QuoteRevision:
         self._refuse_reused_calculation(calculation)
         lines = self._lines(calculation)
@@ -382,6 +434,7 @@ class QuoteStore:
         calculation: PriceCalculationRecord,
         *,
         diff: RevisionDiff | None = None,
+        override_id: UUID | None = None,
     ) -> QuoteRevisionRecord:
         revision_id = calculation.quote_revision_id or uuid7()
         row = QuoteRevisionRecord(
@@ -394,6 +447,7 @@ class QuoteStore:
             total_paise=revision.total.paise,
             currency=revision.total.currency,
             diff_from_previous=None if diff is None else diff.model_dump(mode="json"),
+            pricing_override_id=override_id,
         )
         self._db.add(row)
         self._db.flush()
