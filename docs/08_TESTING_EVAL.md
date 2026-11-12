@@ -712,6 +712,29 @@ The synthetic quote/itinerary/pricing builders now live in
 The transport is a recording fake in tests; a real delivery adapter is not implemented and
 live delivery refuses with `transport_not_configured`.
 
+### Public quote links (task 016c2b)
+`tests/integration/test_quote_public_api.py` (13 tests) drives the three token-only routes
+against a real database and an app whose clock and presentation path are injected:
+
+- opening a link returns only state, revision, total, currency, expiry and eligibility, moves
+  a `SENT` quote to `VIEWED`, and writes one `viewed` event plus one `quote.viewed` audit;
+- an unknown and a malformed token are both a plain `404 not_found`, and no response echoes
+  the token, its digest or a contact value;
+- the document route renders the owner config (brand and terms appear, margin does not), and
+  refuses with `503 needs_config` when the repo default config is still empty, without naming
+  the missing fields;
+- the document and acceptance routes refuse an expired quote with `409 expired`;
+- acceptance of the current revision sets `ACCEPTED` and records a customer `accepted`
+  event; a stale revision, a second acceptance and an expired window each return their stable
+  `409` reason, and a revision below one is rejected with `422` before the service;
+- a one-per-window limiter returns `429 rate_limited` on the second request from the same
+  source.
+
+The tests use a synthetic quote, token, brand and price; they prove the route contract and
+fail-closed behaviour, not owner wording or link delivery. The API access plan
+(`tests/integration/test_route_access.py`) also asserts that all three routes are anonymous and
+token-gated.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

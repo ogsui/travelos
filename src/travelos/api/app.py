@@ -32,9 +32,16 @@ from travelos.core.logging import configure_logging, get_request_id
 from travelos.inquiry.api import router as inquiries_router
 from travelos.inquiry.parser import InquiryParser
 from travelos.llm.factory import build_gateway
+from travelos.quotes.presentation import DEFAULT_PRESENTATION_PATH
+from travelos.quotes.public_api import router as public_quotes_router
 from travelos.security.sessions import AuthSessionService
 
 logger = logging.getLogger("travelos.api")
+
+# Public quote links are read-mostly; this is an abuse ceiling per source
+# address, not a policy on how often a customer may look at their own quote.
+QUOTE_LINK_LIMIT = 60
+QUOTE_LINK_WINDOW_SECONDS = 600
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -60,9 +67,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             yield
         finally:
-            limiter = _app.state.web_form_rate_limiter
-            if isinstance(limiter, RedisWindowLimiter):
-                limiter.close()
+            for name in ("web_form_rate_limiter", "quote_link_limiter"):
+                limiter = getattr(_app.state, name, None)
+                if isinstance(limiter, RedisWindowLimiter):
+                    limiter.close()
             engine.dispose()
             logger.info("service stopped")
 
@@ -89,6 +97,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if resolved.mode is Mode.TEST
         else RedisWindowLimiter.from_url(resolved.effective_redis_url)
     )
+    app.state.quote_presentation_path = DEFAULT_PRESENTATION_PATH
+    app.state.quote_link_limiter = (
+        InMemoryWindowLimiter(limit=QUOTE_LINK_LIMIT, window_seconds=QUOTE_LINK_WINDOW_SECONDS)
+        if resolved.mode is Mode.TEST
+        else RedisWindowLimiter.from_url(
+            resolved.effective_redis_url,
+            limit=QUOTE_LINK_LIMIT,
+            window_seconds=QUOTE_LINK_WINDOW_SECONDS,
+            namespace="quote-link",
+        )
+    )
     app.add_middleware(RequestContextMiddleware)
 
     if resolved.cors_origins:
@@ -110,6 +129,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(whatsapp_router)
     app.include_router(inquiries_router)
     app.include_router(autonomy_router)
+    app.include_router(public_quotes_router)
 
     @app.exception_handler(HTTPException)
     async def http_exception(_request: Request, exc: HTTPException) -> JSONResponse:

@@ -55,6 +55,9 @@ EXPECTED_ROUTES = {
     ("POST", "/approvals/{request_id}/decision"),
     ("GET", "/autonomy/policies"),
     ("PUT", "/autonomy/policies/{action_type}"),
+    ("GET", "/public/quotes/{token}"),
+    ("GET", "/public/quotes/{token}/document"),
+    ("POST", "/public/quotes/{token}/accept"),
 }
 
 
@@ -108,6 +111,20 @@ def test_whatsapp_webhook_routes_are_public_but_check_verification(auth_client: 
 def test_web_form_route_is_public_but_validates_payload(auth_client: TestClient) -> None:
     response = auth_client.post("/channels/web-form", json={})
     assert response.status_code == 422
+
+
+def test_public_quote_routes_are_anonymous_but_token_gated(auth_client: TestClient) -> None:
+    """The token is the credential: no session, and an unknown token is a plain 404."""
+
+    unknown = "a" * 43
+    responses = [
+        auth_client.get(f"/public/quotes/{unknown}"),
+        auth_client.get(f"/public/quotes/{unknown}/document"),
+        auth_client.post(f"/public/quotes/{unknown}/accept", json={"revision_number": 1}),
+    ]
+
+    assert [response.status_code for response in responses] == [404, 404, 404]
+    assert [response.json() for response in responses] == [{"error": "not_found"}] * 3
 
 
 @pytest.mark.parametrize("path", ["/auth/login", "/auth/mfa/enroll"])

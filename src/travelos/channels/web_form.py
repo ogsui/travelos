@@ -78,24 +78,36 @@ return count
         *,
         limit: int = WEB_FORM_LIMIT,
         window_seconds: int = WEB_FORM_WINDOW_SECONDS,
+        namespace: str = "web-form",
     ) -> None:
         self._client = client
         self._limit = limit
         self._window_seconds = window_seconds
+        self._namespace = namespace
 
     @classmethod
-    def from_url(cls, url: str) -> RedisWindowLimiter:
+    def from_url(
+        cls,
+        url: str,
+        *,
+        limit: int = WEB_FORM_LIMIT,
+        window_seconds: int = WEB_FORM_WINDOW_SECONDS,
+        namespace: str = "web-form",
+    ) -> RedisWindowLimiter:
         return cls(
             Redis.from_url(
                 url,
                 decode_responses=False,
                 socket_connect_timeout=1,
                 socket_timeout=1,
-            )
+            ),
+            limit=limit,
+            window_seconds=window_seconds,
+            namespace=namespace,
         )
 
     def allow(self, source_digest: str) -> bool:
-        key = f"travelos:web-form:rate:v1:{source_digest}"
+        key = f"travelos:{self._namespace}:rate:v1:{source_digest}"
         # redis-py leaves eval() untyped; the Lua script returns an integer.
         count = self._client.eval(  # type: ignore[no-untyped-call]
             self._SCRIPT, 1, key, self._window_seconds
