@@ -21,7 +21,8 @@ The umbrella task exceeds the ~800-line review budget, so it is delivered in the
 | **016b1** | Staff-labelled, append-only multi-option groups (`quote_groups`, `quote_group_options`, migration 0019), ordered labels, same-inquiry/one-group rules. No tier ranking is inferred | **done** |
 | **016b2a** | Fail-closed owner presentation config (`quote_presentation`) and pure escaped HTML rendering: total + tax lines only, fare rules/refundability, visa notes "to be confirmed", payment schedule, snapshot refs. Reports `NEEDS_CONFIG` rather than invent brand, legal or payment text | **done** |
 | **016b2b** | DB document builder over one quote or a staff-labelled group, lazy WeasyPrint PDF adapter (`[pdf]` extra), `quote.rendered` audit and integration tests. No document is persisted; production output still needs the owner's real brand assets, T&Cs and payment schedule | **done** |
-| **016c** | Approval-gated send (`quote.send` A1), consent/mode/kill-switch gates, `quote_events`, accept token (hash only), acceptance endpoint refusing expired/stale revisions, owner-approved below-floor entry | pending |
+| **016c1** | `quote_events` (migration 0020) with a per-quote position, hashed accept links (rotating, not single-use), view tracking, and acceptance refusing expired/stale/already-accepted/not-sent quotes | **done** |
+| **016c2** | Approval-gated send (`quote.send` A1), consent/mode/kill-switch gates, public link endpoints and delivery, owner-approved below-floor entry | pending |
 | **016d** | Re-quote flow on plan changes with a reviewer diff, owner-approved follow-up templates, consent-aware cadence, stop on accept/reply/STOP, timer/outbox wiring | pending |
 
 ## Scope

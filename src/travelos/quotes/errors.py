@@ -7,6 +7,8 @@ an owner decision, or supply missing configuration.
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from travelos.core.errors import TravelOSError
 
 
@@ -36,6 +38,19 @@ class QuoteGroupValidationError(QuoteValidationError):
 
 class QuoteStateError(QuoteError):
     """The quote's workflow state does not allow the requested change."""
+
+
+class QuoteLinkNotFoundError(QuoteError):
+    """The presented accept token does not resolve to exactly one quote."""
+
+
+class QuoteAcceptanceError(QuoteStateError):
+    """The quote cannot be accepted for the stated, customer-safe reason."""
+
+    def __init__(self, quote_id: UUID, reason: str) -> None:
+        self.quote_id = quote_id
+        self.reason = reason
+        super().__init__(f"quote {quote_id} cannot be accepted: {reason}")
 
 
 class QuotePresentationError(QuoteError):

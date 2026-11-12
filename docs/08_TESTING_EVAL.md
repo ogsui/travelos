@@ -671,6 +671,27 @@ builder copies and refuses correctly, not owner wording or Indian tax/legal trea
 The PDF path uses a fake engine because WeasyPrint is an optional extra and is not installed in
 the test environment.
 
+### Accept links and quote events (task 016c1)
+`tests/integration/test_quote_acceptance.py` (14 tests) drives the service against stored rows:
+
+- a token is stored only as its sha256, and a second issue rotates the link so the old one no
+  longer resolves; the rotation is audited with `replaced_previous`;
+- a draft or expired quote cannot issue a link, and a malformed/unknown token is not found;
+- opening a sent quote moves it to `VIEWED`, writes one `viewed` event and one `quote.viewed`
+  audit row, and opening again adds nothing; an expired link still opens but reports
+  `expired`;
+- accepting the current revision sets `ACCEPTED`, stores the accepted revision/total in the
+  timeline and audit, and copies no token or contact data;
+- a stale revision, an expired window, a not-yet-sent quote and a second acceptance are each
+  refused with their stable reason, leaving state and timeline unchanged;
+- a public link resolves without the staff tenant, and `quote_events` rows reject ORM updates.
+
+`tests/unit/test_quote_accept_token.py` (6 tests) pins the token shape and the sha256 digest,
+and refuses a blank, short or oversized presented token before it reaches the database.
+
+The synthetic quote/itinerary/pricing builders now live in
+`tests/integration/quote_fixtures.py`, shared by `test_quote_store.py` and the new test.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

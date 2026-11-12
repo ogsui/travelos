@@ -50,6 +50,7 @@ BUSINESS_TABLES = {
     "price_calculations",
     "price_snapshots",
     "pricing_rule_sets",
+    "quote_events",
     "quote_group_options",
     "quote_groups",
     "quote_lines",
@@ -457,6 +458,10 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
             "ix_price_calculations_tax_table",
             "ix_price_calculations_quote_revision",
         },
+        "quote_events": {
+            "ix_quote_events_tenant_quote",
+            "ix_quote_events_tenant_created",
+        },
     }
     for table, names in expected_indexes.items():
         actual = {index["name"] for index in inspector.get_indexes(table)}
@@ -478,6 +483,7 @@ def test_required_indexes_and_unique_constraints_exist(schema_engine) -> None:
         "message_drafts": {("approval_id",)},
         "pricing_rule_sets": {("tenant_id", "version")},
         "tax_rule_tables": {("tenant_id", "version")},
+        "quote_events": {("quote_id", "position")},
     }
     for table, expected in expected_unique.items():
         actual = {tuple(c["column_names"]) for c in inspector.get_unique_constraints(table)}

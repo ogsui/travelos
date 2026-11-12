@@ -38,10 +38,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from travelos.core.db import BaseTable
 from travelos.core.errors import AppendOnlyError
-from travelos.quotes.models import LineKind, QuoteState
+from travelos.quotes.models import LineKind, QuoteEventKind, QuoteState
 
 _STATES = ", ".join(f"'{state.value}'" for state in QuoteState)
 _LINE_KINDS = ", ".join(f"'{kind.value}'" for kind in LineKind)
+_EVENT_KINDS = ", ".join(f"'{kind.value}'" for kind in QuoteEventKind)
+_EVENT_ACTORS = "'customer', 'staff', 'system'"
 _CURRENCY_PATTERN = "^[A-Z]{3}$"
 _TOKEN_PATTERN = "^[0-9a-f]{64}$"
 
@@ -200,6 +202,48 @@ class QuoteGroupOptionRecord(BaseTable):
     )
 
 
+class QuoteEventRecord(BaseTable):
+    """One immutable customer-facing event in a quote's timeline.
+
+    ``revision_number`` and ``total_paise`` are copied at the moment of the
+    event so the timeline states what the customer saw and accepted even though
+    it is read without joining the revision. Events are append-only.
+    """
+
+    __tablename__ = "quote_events"
+
+    quote_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("quotes.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    total_paise: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    currency: Mapped[str] = mapped_column(CHAR(3), nullable=False, default="INR")
+    actor_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="system", server_default="system"
+    )
+
+    __table_args__ = (
+        CheckConstraint("position >= 0", name="position_non_negative"),
+        CheckConstraint("revision_number >= 1", name="revision_number_positive"),
+        CheckConstraint(f"kind IN ({_EVENT_KINDS})", name="kind"),
+        CheckConstraint("total_paise >= 0", name="total_non_negative"),
+        CheckConstraint(f"currency ~ '{_CURRENCY_PATTERN}'", name="currency_code"),
+        CheckConstraint(f"actor_type IN ({_EVENT_ACTORS})", name="actor_type"),
+        UniqueConstraint("quote_id", "position", name="uq_quote_events_quote_id_position"),
+        Index(
+            "ix_quote_events_tenant_quote",
+            "tenant_id",
+            "quote_id",
+            "position",
+        ),
+        Index("ix_quote_events_tenant_created", "tenant_id", "created_at"),
+    )
+
+
 def _block_update(mapper: object, connection: object, target: object) -> None:
     del mapper, connection, target
     raise AppendOnlyError("quote revisions are append-only: UPDATE is forbidden")
@@ -220,6 +264,16 @@ def _block_group_delete(mapper: object, connection: object, target: object) -> N
     raise AppendOnlyError("quote groups are append-only: DELETE is forbidden")
 
 
+def _block_event_update(mapper: object, connection: object, target: object) -> None:
+    del mapper, connection, target
+    raise AppendOnlyError("quote events are append-only: UPDATE is forbidden")
+
+
+def _block_event_delete(mapper: object, connection: object, target: object) -> None:
+    del mapper, connection, target
+    raise AppendOnlyError("quote events are append-only: DELETE is forbidden")
+
+
 for _record in (QuoteRevisionRecord, QuoteLineRecord):
     event.listen(_record, "before_update", _block_update)
     event.listen(_record, "before_delete", _block_delete)
@@ -228,7 +282,11 @@ for _group_record in (QuoteGroupRecord, QuoteGroupOptionRecord):
     event.listen(_group_record, "before_update", _block_group_update)
     event.listen(_group_record, "before_delete", _block_group_delete)
 
+event.listen(QuoteEventRecord, "before_update", _block_event_update)
+event.listen(QuoteEventRecord, "before_delete", _block_event_delete)
+
 __all__ = [
+    "QuoteEventRecord",
     "QuoteGroupOptionRecord",
     "QuoteGroupRecord",
     "QuoteLineRecord",

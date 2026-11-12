@@ -58,6 +58,16 @@ class AcceptanceStatus(StrEnum):
     ALREADY_ACCEPTED = "already_accepted"
 
 
+class QuoteEventKind(StrEnum):
+    """The tracked customer-facing events on a quote (task 016c)."""
+
+    SENT = "sent"
+    VIEWED = "viewed"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+
 class _FrozenModel(BaseModel):
     model_config = ConfigDict(
         frozen=True,
@@ -300,6 +310,7 @@ __all__ = [
     "LineChange",
     "LineDelta",
     "LineKind",
+    "QuoteEventKind",
     "QuoteGroupDraft",
     "QuoteGroupOption",
     "QuoteLine",
