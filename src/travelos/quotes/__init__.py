@@ -21,6 +21,7 @@ from travelos.quotes.errors import (
     QuotePresentationConfigError,
     QuotePresentationError,
     QuotePricingError,
+    QuoteSendError,
     QuoteStateError,
     QuoteValidationError,
 )
@@ -68,16 +69,34 @@ from travelos.quotes.render import (
     QuoteDocument,
     render_quote_html,
 )
-from travelos.quotes.rendering import QuoteRenderer, RenderedQuote
+from travelos.quotes.rendering import (
+    QuoteRenderer,
+    RenderedQuote,
+    require_presentation,
+)
+from travelos.quotes.sending import (
+    SEND_ACTION,
+    SEND_CHANNELS,
+    ConsentReader,
+    KillSwitchReader,
+    QuoteSendService,
+    QuoteTransport,
+    SendOutcome,
+    SendRequest,
+)
 from travelos.quotes.store import QuoteStore, QuoteView
 
 __all__ = [
+    "SEND_ACTION",
+    "SEND_CHANNELS",
     "AcceptanceStatus",
     "Brand",
+    "ConsentReader",
     "DayView",
     "FareRuleView",
     "IssuedToken",
     "ItemView",
+    "KillSwitchReader",
     "LineChange",
     "LineDelta",
     "LineKind",
@@ -118,13 +137,18 @@ __all__ = [
     "QuoteRenderer",
     "QuoteRevision",
     "QuoteRevisionRecord",
+    "QuoteSendError",
+    "QuoteSendService",
     "QuoteState",
     "QuoteStateError",
     "QuoteStore",
+    "QuoteTransport",
     "QuoteValidationError",
     "QuoteView",
     "RenderedQuote",
     "RevisionDiff",
+    "SendOutcome",
+    "SendRequest",
     "Terms",
     "acceptance_status",
     "build_group_document",
@@ -134,5 +158,6 @@ __all__ = [
     "new_accept_token",
     "render_pdf",
     "render_quote_html",
+    "require_presentation",
     "token_digest",
 ]

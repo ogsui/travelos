@@ -692,6 +692,26 @@ and refuses a blank, short or oversized presented token before it reaches the da
 The synthetic quote/itinerary/pricing builders now live in
 `tests/integration/quote_fixtures.py`, shared by `test_quote_store.py` and the new test.
 
+### Approval-gated sending (task 016c2a)
+`tests/integration/test_quote_send.py` (16 tests) drives both send steps against stored rows:
+
+- a request moves a draft quote to `PENDING_APPROVAL`, opens one `quote.send` approval with
+  the revision, total, expiry, channel and purpose, and copies no contact id into it;
+- a non-draft, expired, kill-switched, unconsented or unconfigured quote is refused before
+  any approval or audit row is written, and an unknown channel is refused outright;
+- delivery refuses a pending approval, a missing approval id, an approval that belongs to
+  another quote, a withdrawn consent, an expired quote, an empty recipient, and a live
+  deployment with no transport;
+- `test` mode runs the whole pipeline, records `quote.approved` plus `quote.send.suppressed`,
+  leaves the quote `APPROVED`, writes no `sent` event and never calls the transport;
+- `live` hands the rendered document to the transport exactly once with a deterministic
+  idempotency key, moves the quote to `SENT`, appends one `sent` event and audits
+  `quote.sent`; the transported HTML carries the owner brand and terms but no margin or
+  supplier lines.
+
+The transport is a recording fake in tests; a real delivery adapter is not implemented and
+live delivery refuses with `transport_not_configured`.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

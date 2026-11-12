@@ -53,6 +53,15 @@ class QuoteAcceptanceError(QuoteStateError):
         super().__init__(f"quote {quote_id} cannot be accepted: {reason}")
 
 
+class QuoteSendError(QuoteStateError):
+    """A quote cannot be sent right now, for the stated closed reason."""
+
+    def __init__(self, quote_id: UUID, reason: str) -> None:
+        self.quote_id = quote_id
+        self.reason = reason
+        super().__init__(f"quote {quote_id} cannot be sent: {reason}")
+
+
 class QuotePresentationError(QuoteError):
     """The owner's presentation rules are absent or cannot produce a document."""
 

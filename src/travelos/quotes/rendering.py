@@ -154,6 +154,20 @@ class QuoteRenderer:
         return RenderedQuote(document=document, html=html_text, pdf=pdf)
 
 
+def require_presentation(path: Path | str = DEFAULT_PRESENTATION_PATH) -> QuotePresentation:
+    """Load the owner's presentation rules, refusing an incomplete config.
+
+    Sending needs the same fail-closed check as rendering: a missing brand,
+    terms version or payment schedule must stop the pipeline rather than produce
+    invented wording. ``NEEDS_CONFIG`` gap fields are named in the message.
+    """
+
+    result = load_quote_presentation(path)
+    if result.needs_config or result.presentation is None:
+        raise QuotePresentationError(_gap_message(result))
+    return result.presentation
+
+
 def _gap_message(result: PresentationLoadResult) -> str:
     fields = ", ".join(gap.field for gap in result.gaps[:5])
     hidden = len(result.gaps) - 5
@@ -161,4 +175,4 @@ def _gap_message(result: PresentationLoadResult) -> str:
     return f"quote presentation needs owner configuration: {fields}{more}"
 
 
-__all__ = ["QuoteRenderer", "RenderedQuote"]
+__all__ = ["QuoteRenderer", "RenderedQuote", "require_presentation"]

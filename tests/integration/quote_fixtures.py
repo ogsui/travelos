@@ -8,10 +8,14 @@ test's rolled-back transaction.
 
 from __future__ import annotations
 
+import base64
 import itertools
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
+from typing import Any
 from uuid import UUID, uuid4
 
+import yaml
 from sqlalchemy.orm import Session
 
 from travelos.core.models import User
@@ -293,3 +297,53 @@ def move_to(db: Session, quote: QuoteRecord, state: QuoteState) -> QuoteRecord:
     quote.state = state.value
     db.flush()
     return quote
+
+
+# ---------------------------------------------------------------------------
+# A synthetic owner presentation config (never real brand or legal wording)
+# ---------------------------------------------------------------------------
+
+PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
+)
+
+
+def presentation_data() -> dict[str, Any]:
+    return {
+        "quote_presentation": {
+            "timezone": "Asia/Kolkata",
+            "brand": {
+                "display_name": "Synthetic Travel",
+                "legal_name": "Synthetic Travel Private Limited",
+                "registered_address": "1 Test Road, Panaji, Goa 403001",
+                "gstin": "27AAAAA0000A1Z5",
+                "logo_path": "assets/logo.png",
+                "primary_color": "#123456",
+                "support_email": "help@example.test",
+                "support_phone": "+91 90000 00000",
+            },
+            "terms": {
+                "version": "synthetic-v1",
+                "text": "Synthetic terms for tests only.",
+            },
+            "payment_schedule": [
+                {"label": "Deposit", "percent": 30, "due": "On booking"},
+                {"label": "Balance", "percent": 70, "due": "30 days before travel"},
+            ],
+            "visa": {"source_note": None},
+        }
+    }
+
+
+def write_presentation_config(tmp_path: Path, *, mutate: Any = None) -> Path:
+    """Write a complete synthetic ``quote_presentation`` section and its logo."""
+
+    data = presentation_data()
+    if mutate is not None:
+        mutate(data)
+    assets = tmp_path / "assets"
+    assets.mkdir(exist_ok=True)
+    (assets / "logo.png").write_bytes(PNG)
+    path = tmp_path / "business_rules.yaml"
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    return path
