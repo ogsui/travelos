@@ -38,6 +38,12 @@ def test_autonomy_write_is_owner_only() -> None:
     ]
 
 
+def test_price_override_is_owner_only() -> None:
+    assert [role for role in Role if has_permission(role, Permission.QUOTES_PRICE_OVERRIDE)] == [
+        Role.OWNER
+    ]
+
+
 def test_every_role_can_read_approvals_and_autonomy() -> None:
     for role in Role:
         assert has_permission(role, Permission.APPROVALS_READ), role

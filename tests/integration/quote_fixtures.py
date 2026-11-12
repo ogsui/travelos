@@ -18,6 +18,7 @@ from uuid import UUID, uuid4
 import yaml
 from sqlalchemy.orm import Session
 
+from travelos.core.db import DEFAULT_TENANT_ID
 from travelos.core.models import User
 from travelos.core.money import Money, money
 from travelos.inquiry.models import Inquiry
@@ -123,9 +124,10 @@ def record_price(
     competitor: Money | None = None,
     tcs_enabled: bool = False,
     quote_revision_id: UUID | None = None,
+    tenant_id: UUID = DEFAULT_TENANT_ID,
 ) -> tuple[PriceCalculationRecord, PriceResult]:
     version = next(_VERSIONS)
-    pricing = PricingStore(db)
+    pricing = PricingStore(db, tenant_id=tenant_id)
     stored_rules = pricing.save_rule_set(
         ruleset(version=version, tax_table_version=version, tcs_enabled=tcs_enabled),
         approved_by=make_user(db).id,

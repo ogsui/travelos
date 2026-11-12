@@ -766,6 +766,29 @@ The fixtures are synthetic prices, margins and tax rates; the tests prove the me
 refusals, not owner policy. Tax treatment of an owner-adjusted total remains an owner/accountant
 question and is recorded in `docs/BACKLOG.md`.
 
+### Owner price override endpoint (task 016c2c2)
+`tests/integration/test_quote_price_override_api.py` (13 tests) drives `POST /quotes/price-overrides`
+through the real app and a migrated database:
+
+- a signed-in owner records the decision: `201` with the override id, source and authorised
+  calculations, the decision task, status, total, currency and decision time; the reason is stored
+  but not echoed, and the response contains no owner contact detail;
+- the optional `decision_task_id` may be omitted (the service finds the open task) and a total raised
+  into the bounds produces an `ok` authorised calculation;
+- the decision completes the task, leaves the source calculation untouched, keeps the original
+  `expires_at` (an override never extends validity) and writes one
+  `quote.price_override.recorded` plus one `pricing.owner_decision.completed` audit row;
+- an unknown calculation and another tenant's calculation are `404 not_found` with no row written;
+- an `ok` calculation, a calculation with no decision task, another calculation's task, a second
+  decision, an off-step total and a whitespace-only reason are `409` with the service's explanation;
+- a negative total and an extra body field are `422`, and a rejected body creates nothing.
+
+`tests/integration/test_route_access.py` adds the route to the enforced access plan: anonymous callers
+get `401`, `admin`, `agent` and `accountant` get `403 permission_denied` with an
+`auth.permission_denied` audit row, and the owner reaches the service. `tests/unit/test_permissions.py`
+pins `quotes:price_override` as owner-only. The dashboard form is still task 017; the route never sends
+a message, creates a quote or moves money.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

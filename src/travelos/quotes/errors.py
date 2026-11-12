@@ -85,3 +85,11 @@ class QuotePriceOverrideNotFoundError(QuoteError):
 
 class QuotePriceOverrideError(QuoteError):
     """The owner price override is not allowed as supplied."""
+
+
+class QuotePriceCalculationNotFoundError(QuotePriceOverrideNotFoundError, QuotePriceOverrideError):
+    """The price calculation named by an override request is unknown in this tenant.
+
+    It is both "not found" (the caller named a row that does not exist) and an
+    override refusal, so callers that answer either way keep working.
+    """

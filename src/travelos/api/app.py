@@ -34,6 +34,7 @@ from travelos.inquiry.parser import InquiryParser
 from travelos.llm.factory import build_gateway
 from travelos.quotes.presentation import DEFAULT_PRESENTATION_PATH
 from travelos.quotes.public_api import router as public_quotes_router
+from travelos.quotes.staff_api import router as staff_quotes_router
 from travelos.security.sessions import AuthSessionService
 
 logger = logging.getLogger("travelos.api")
@@ -129,6 +130,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(whatsapp_router)
     app.include_router(inquiries_router)
     app.include_router(autonomy_router)
+    app.include_router(staff_quotes_router)
     app.include_router(public_quotes_router)
 
     @app.exception_handler(HTTPException)

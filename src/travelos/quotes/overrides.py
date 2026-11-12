@@ -40,6 +40,7 @@ from travelos.pricing.models import CustomerSegment
 from travelos.pricing.records import PriceCalculationRecord
 from travelos.pricing.store import PricingStore, StoredRuleSet, StoredTaxTable
 from travelos.quotes.errors import (
+    QuotePriceCalculationNotFoundError,
     QuotePriceOverrideError,
     QuotePriceOverrideNotFoundError,
 )
@@ -100,7 +101,9 @@ class QuotePriceOverrideService:
         pricing = PricingStore(self._db, tenant_id=self._tenant_id)
         source = pricing.get_calculation(calculation_id)
         if source is None:
-            raise QuotePriceOverrideError(f"price calculation {calculation_id} was not found")
+            raise QuotePriceCalculationNotFoundError(
+                f"price calculation {calculation_id} was not found"
+            )
         if source.status not in _OVERRIDABLE:
             raise QuotePriceOverrideError(
                 f"price calculation {calculation_id} is {source.status}; only a "

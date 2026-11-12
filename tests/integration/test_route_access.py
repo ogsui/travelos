@@ -55,6 +55,7 @@ EXPECTED_ROUTES = {
     ("POST", "/approvals/{request_id}/decision"),
     ("GET", "/autonomy/policies"),
     ("PUT", "/autonomy/policies/{action_type}"),
+    ("POST", "/quotes/price-overrides"),
     ("GET", "/public/quotes/{token}"),
     ("GET", "/public/quotes/{token}/document"),
     ("POST", "/public/quotes/{token}/accept"),
@@ -345,6 +346,7 @@ def test_inquiry_write_denies_roles_without_crm_write(
         ("POST", "/approvals/00000000-0000-0000-0000-0000000000aa/decision"),
         ("GET", "/autonomy/policies"),
         ("PUT", "/autonomy/policies/quote.send"),
+        ("POST", "/quotes/price-overrides"),
     ],
 )
 def test_protected_routes_reject_anonymous_callers(
@@ -474,3 +476,41 @@ def test_autonomy_write_allows_owner(auth_client: TestClient, make_user, login) 
 
     assert response.status_code == 200
     assert response.json()["level"] == "A2"
+
+
+# --------------------------------------------------------------------------
+# Owner price overrides (task 016c2c2)
+# --------------------------------------------------------------------------
+
+OVERRIDE_PAYLOAD = {
+    "calculation_id": "00000000-0000-0000-0000-0000000000aa",
+    "owner_total_paise": 102_000,
+    "reason": "Synthetic owner decision for tests.",
+}
+
+
+@pytest.mark.parametrize("role", ["admin", "agent", "accountant"])
+def test_price_override_denies_every_role_but_owner(
+    auth_client: TestClient, make_user, login, audit_rows, role: str
+) -> None:
+    token = login_as(login, auth_client, make_user, role)
+
+    response = auth_client.post(
+        "/quotes/price-overrides", json=OVERRIDE_PAYLOAD, headers=bearer(token)
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"error": "permission_denied"}
+    assert audit_rows("auth.permission_denied")
+
+
+def test_price_override_allows_owner(auth_client: TestClient, make_user, login) -> None:
+    token = login_as(login, auth_client, make_user, "owner")
+
+    response = auth_client.post(
+        "/quotes/price-overrides", json=OVERRIDE_PAYLOAD, headers=bearer(token)
+    )
+
+    # The permission check passed; the synthetic calculation does not exist.
+    assert response.status_code == 404
+    assert response.json() == {"error": "not_found"}

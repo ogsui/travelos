@@ -30,6 +30,7 @@ class Permission(StrEnum):
     CRM_WRITE = "crm:write"
     QUOTES_READ = "quotes:read"
     QUOTES_WRITE = "quotes:write"
+    QUOTES_PRICE_OVERRIDE = "quotes:price_override"
     BILLING_READ = "billing:read"
     BILLING_WRITE = "billing:write"
     REPORTS_READ = "reports:read"
