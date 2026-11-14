@@ -92,6 +92,9 @@ Timeouts everywhere; retries with jittered backoff; circuit breakers per adapter
 ## Environments
 `local` (Docker, synthetic data, mock adapters) -> `staging` (synthetic data, sandbox adapters) -> `prod` (`MODE=shadow`, then `live`). Config via environment variables and `config/business_rules.yaml`. Secrets never in the repo.
 
+## Dashboard (`web/dashboard`)
+Next.js App Router, TypeScript strict, server components by default. The browser holds an httpOnly, `SameSite=Lax` cookie named `travelos_dashboard_session` that carries the API access token; every API call is made from the Next.js server with `Authorization: Bearer`, so no token or API location reaches a client bundle and there is no client-side authorization to bypass. The shell re-reads `GET /auth/me` on each request and redirects to `/login` when the API rejects the session; if the API is unreachable it shows an "API unavailable" screen instead of a stale shell. Production requires `API_BASE_URL` (the server refuses to call an unconfigured API); `MODE` drives the environment badge and `SESSION_COOKIE_SECURE=false` exists only for the local http stack. `make web-check` runs lint, unit/component tests, typecheck and build; `make web-e2e` runs the Playwright suites.
+
 ## Repo layout
 ```
 travelos/

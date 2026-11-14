@@ -21,6 +21,8 @@
 
 ## Web (dashboard + site)
 - Next.js + TypeScript strict, ESLint, component tests, Playwright e2e. Accessible and mobile-first (approvals are done from phones). No secrets in client bundles. Server-side authorization, not just hidden buttons.
+- Dashboard authentication is server-side: the API access token lives in an httpOnly cookie and all API calls run on the Next.js server. A client component never receives a token, an API origin or an authorization decision; if it needs data, it gets it from a server component or a server action.
+- The dashboard fails closed: a missing API configuration or an unreachable API shows an explicit unavailable screen, never an empty or stale queue.
 - Public site: fast, SEO-friendly, consent banner, privacy notice, no third-party scripts without need.
 
 ## Testing

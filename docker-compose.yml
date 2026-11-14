@@ -116,7 +116,11 @@ services:
       dockerfile: Dockerfile
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      # Server-side only: the browser never learns the API location or token.
+      API_BASE_URL: http://api:8000
+      MODE: ${MODE:-test}
+      # Local stack is plain http; a real deployment must leave this unset.
+      SESSION_COOKIE_SECURE: "false"
     ports:
       - "3000:3000"
     depends_on:

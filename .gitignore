@@ -31,6 +31,10 @@ out/
 *.tsbuildinfo
 npm-debug.log*
 
+# Playwright
+playwright-report/
+test-results/
+
 # Web assets and generated documents
 web/**/.vercel/
 media/

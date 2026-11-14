@@ -789,6 +789,25 @@ get `401`, `admin`, `agent` and `accountant` get `403 permission_denied` with an
 pins `quotes:price_override` as owner-only. The dashboard form is still task 017; the route never sends
 a message, creates a quote or moves money.
 
+## Dashboard shell, sign-in and web harness (task 017a)
+The dashboard is server-rendered, so its tests run in three layers:
+
+- `npm run test` (Vitest + Testing Library, jsdom): `lib/api.test.ts` pins the server-only API client
+  (bearer header, `cache: "no-store"`, JSON body, `ApiError` mapping, transport failure ->
+  `api_unavailable`, production without `API_BASE_URL` -> `api_not_configured` and no fetch call);
+  `lib/session-cookie.test.ts` pins the cookie lifetime (30 s clock-skew deduction, past/invalid
+  expiry -> 0, 30-day cap) and the `httpOnly`/`SameSite=Lax`/`secure` flags;
+  `components/login-form.test.tsx` pins the MFA step (hidden until `mfa_required`, typed credentials
+  preserved, code submitted) and the alert/`aria-invalid` semantics of a failure;
+- `npm run e2e` (Playwright, mobile Pixel 7 + desktop Chrome) against a dev server on port 3100 with
+  `API_BASE_URL` pointed at a closed port: `/login` renders email/password and no code field, `/`
+  redirects an unauthenticated visitor to `/login`, and a visitor with a session cookie but no API
+  gets the "API unavailable" screen (fail closed, no empty shell). Approve/edit/reject/escalate e2e
+  arrives with the review screens in 017b-017e;
+- `npm run lint`, `npm run typecheck` and `npm run build` cover ESLint (Next core-web-vitals),
+  TypeScript strict and the production bundle. CI runs all of it in the `dashboard` job; `make
+  web-check` runs the first three and `make web-e2e` the browser suite.
+
 ## Suggested gates (tune with real data)
 | Gate | Criterion |
 |---|---|

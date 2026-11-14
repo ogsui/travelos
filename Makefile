@@ -4,7 +4,7 @@ COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down build logs seed test test-unit test-integration lint format typecheck check eval eval-inquiry eval-sales web-install web-check
+.PHONY: help up down build logs seed test test-unit test-integration lint format typecheck check eval eval-inquiry eval-sales web-install web-check web-e2e
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -58,5 +58,8 @@ eval-sales: ## Run the sales-reply rubric and injection eval (deterministic)
 web-install: ## Install dashboard dependencies
 	cd web/dashboard && npm install
 
-web-check: ## Typecheck and build the dashboard
-	cd web/dashboard && npm run typecheck && npm run build
+web-check: ## Lint, test, typecheck and build the dashboard
+	cd web/dashboard && npm run lint && npm run typecheck && npm run test && npm run build
+
+web-e2e: ## Run the dashboard Playwright suite (installs Chromium once)
+	cd web/dashboard && npx playwright install chromium && npm run e2e
